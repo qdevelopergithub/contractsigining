@@ -12,7 +12,8 @@ const MAKE_WEBHOOK_URL = "https://hook.us2.make.com/ihncxlrp5nekfz7h2kmy5hni4lv0
  * The public URL where the ContractGenius (Signing App) is hosted.
  * We assume it's running on port 3001 if the Vendor App is on 3000.
  */
-const APP_PUBLIC_URL = process.env.VITE_ADMIN_APP_URL || "http://localhost:3004";
+const rawAdminUrl = import.meta.env.VITE_ADMIN_APP_URL || "http://localhost:3004";
+const APP_PUBLIC_URL = rawAdminUrl.startsWith('http') ? rawAdminUrl : `https://${rawAdminUrl}`;
 
 /**
  * Sends the vendor data to Make.com Webhook.

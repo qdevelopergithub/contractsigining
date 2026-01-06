@@ -106,7 +106,9 @@ export const VendorContractView: React.FC<Props> = ({ contractId, navigate }) =>
             const signatureBase64 = canvasRef.current.toDataURL('image/png');
 
             // Call the backend API for signing, PDF generation, and Drive upload
-            const backendUrl = process.env.VITE_BACKEND_URL || 'http://localhost:3001';
+            const rawBackendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+            const backendUrl = rawBackendUrl.startsWith('http') ? rawBackendUrl : `https://${rawBackendUrl}`;
+
             const response = await fetch(`${backendUrl}/api/contracts/sign`, {
                 method: 'POST',
                 headers: {
