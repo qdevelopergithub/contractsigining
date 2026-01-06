@@ -1,0 +1,70 @@
+import { GoogleGenAI } from "@google/genai";
+import { VendorDetails } from "../types";
+
+// Initialize Gemini Client
+const getClient = () => {
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) {
+    throw new Error("API_KEY environment variable is missing.");
+  }
+  return new GoogleGenAI({ apiKey });
+};
+
+export const generateContractDraft = async (details: VendorDetails): Promise<string> => {
+  const client = getClient();
+
+  const fixturesList = details.selectedFixtures?.map(f => `- ${f.type} (Qty: ${f.quantity})`).join('\n') || `- ${details.fixture} (Qty: ${details.fixtureQuantity})`;
+  const categoriesList = details.categories?.join(', ') || 'N/A';
+
+  const prompt = `
+    Generate a professional, legally structured service contract for a trade show or exhibition vendor.
+    
+    Exhibitor Info:
+    - Company Name: ${details.company}
+    - Brand Name: ${details.brandName || 'N/A'}
+    - Showroom: ${details.showroomName || 'N/A'}
+    
+    Primary Contact:
+    - Name: ${details.name}
+    - Title: ${details.title || 'N/A'}
+    - Email: ${details.email}
+    - Phone: ${details.countryCode} ${details.phone || 'N/A'}
+    - Company Address: ${details.address}
+
+    Additional Contact (For Reference):
+    - Name: ${details.additionalContact?.name || 'N/A'}
+    - Email: ${details.additionalContact?.email || 'N/A'}
+    - Phone: ${details.additionalContact?.phone ? (details.additionalContact.countryCode + ' ' + details.additionalContact.phone) : 'N/A'}
+    
+    Categories:
+    - ${categoriesList}
+
+    Booth & Fixtures:
+    - Booth Size/Type: ${details.finalBoothSize || details.boothSize}
+    - Selected Fixtures:
+${fixturesList}
+    - Special Requirements: ${details.specialRequirements}
+
+    Requirements:
+    1. Title: "Exhibition Service Agreement".
+    2. Date: Use today's date (${new Date().toLocaleDateString()}).
+    3. **Important:** Explicitly include the **Company Address** and **Company Name** in the Parties section.
+    4. Include sections for: Agreement Parties, Booth Allocation & Fixtures, Fees & Payment, Liability & Insurance, and Signatures.
+    5. The tone should be formal and binding.
+    6. Format in Markdown.
+    Do not include any conversational filler at the beginning or end.
+    Use placeholders like [Organizer Name] for the event organizer details.
+  `;
+
+  try {
+    const response = await client.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+    });
+
+    return response.text || "Error: Could not generate contract text.";
+  } catch (error) {
+    console.error("Gemini API Error:", error);
+    return "Error: Failed to connect to AI service. Please check your API key.";
+  }
+};
