@@ -243,27 +243,8 @@ app.post('/api/contracts/sign', async (req, res) => {
 
     const pdfBytes = await pdfDoc.save();
 
-    // 3. Send Final Signed Contract via Make.com Webhook
-    try {
-      const webhookPayload = {
-        action: "send_final_contract",
-        email: vendor.email,
-        pdfBase64: Buffer.from(pdfBytes).toString('base64'),
-        fileName: `Signed_Contract_${vendor.name.replace(/\s+/g, '_')}_${Date.now()}.pdf`
-      };
-
-      const MAKE_WEBHOOK_URL = process.env.MAKE_WEBHOOK_URL || "https://hook.us2.make.com/ihncxlrp5nekfz7h2kmy5hni4lv0ct6w";
-
-      await fetch(MAKE_WEBHOOK_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(webhookPayload)
-      });
-      console.log('Signed contract sent to Make.com successfully.');
-    } catch (webhookError) {
-      console.error('Failed to send to Make.com:', webhookError);
-      // We log but don't fail the whole request
-    }
+    // 3. Render and other cloud environments should handling signing notifications 
+    // via the submit_vendor_data action. Removing redundant send_final_contract call.
 
     // 4. Upload to Google Drive
     try {

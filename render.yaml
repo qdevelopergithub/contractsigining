@@ -1,4 +1,5 @@
 services:
+  # Backend API Service
   - type: web
     name: contract-genius-backend
     env: node
@@ -19,3 +20,19 @@ services:
         sync: false
       - key: GOOGLE_SERVICE_ACCOUNT_JSON
         sync: false
+
+  # Frontend Static Site
+  - type: static
+    name: contract-genius-frontend
+    env: static
+    rootDir: contractgenius
+    buildCommand: npm install && npm run build
+    publishPath: dist
+    envVars:
+      - key: VITE_GROQ_API_KEY
+        sync: false
+      - key: VITE_BACKEND_URL
+        fromService:
+          type: web
+          name: contract-genius-backend
+          property: host
