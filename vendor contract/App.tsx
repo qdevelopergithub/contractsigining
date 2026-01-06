@@ -3,7 +3,7 @@ import VendorForm from './components/VendorForm';
 import ContractPreview from './components/ContractPreview';
 import { VendorFormData, INITIAL_FORM_DATA, AppStatus } from './types';
 import { generateVendorContract } from './services/geminiService';
-import { sendVendorData, sendFinalContractEmail, generateSignedPDF } from './services/emailService';
+import { sendVendorData } from './services/emailService';
 import { Sparkles, FileCheck, CheckCircle } from 'lucide-react';
 
 const App: React.FC = () => {
@@ -80,12 +80,29 @@ const App: React.FC = () => {
 
     try {
       setAppStatus('SENDING');
-      const pdfBlob = generateSignedPDF(contractText, signature);
-      await sendFinalContractEmail(formData.email, pdfBlob);
+
+      // Call Backend to handle everything (PDF, Drive, Email)
+      const rawBackendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+      const backendUrl = rawBackendUrl.startsWith('http') ? rawBackendUrl : `https://${rawBackendUrl}`;
+
+      await fetch(`${backendUrl}/api/contracts/sign`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contractId: "vendor_sub_" + Date.now().toString(36), // Temporary ID for direct submissions
+          signatureImageBase64: signature,
+          contractData: {
+            vendorDetails: formData,
+            text: contractText,
+            content: contractText
+          }
+        })
+      });
+
       setAppStatus('SIGNED');
     } catch (e) {
       console.error("Failed to process signed contract", e);
-      setError("Failed to save signed contract.");
+      setError("Failed to save signed contract on server.");
       setAppStatus('SIGNED');
     }
   };
