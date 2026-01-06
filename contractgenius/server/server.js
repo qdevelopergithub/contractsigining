@@ -5,7 +5,7 @@
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
-const { GoogleGenAI } = require('@google/genai');
+const Groq = require('groq-sdk');
 const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
 const { uploadToDrive } = require('./driveService');
 
@@ -37,7 +37,7 @@ app.use(express.json({ limit: '10mb' }));
 const contractsDb = new Map();
 
 // Initialize AI
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 // POST /api/contracts/draft
 app.post('/api/contracts/draft', async (req, res) => {
@@ -80,12 +80,17 @@ ${fixturesList}
       3. Format in clean Markdown.
     `;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt
+    const completion = await groq.chat.completions.create({
+      messages: [
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+      model: "llama-3.3-70b-versatile",
     });
 
-    const contractText = response.text();
+    const contractText = completion.choices[0]?.message?.content || "Error: No content generated.";
 
     // 2. Save Draft
     const contractId = 'contract_' + Date.now().toString(36);
