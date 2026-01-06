@@ -3,6 +3,8 @@
   "version": "1.0.0",
   "description": "Integrated Contract Signing Suite",
   "scripts": {
+    "build": "cd contractgenius && npm run build",
+    "install": "cd contractgenius && npm install",
     "server": "cd contractgenius/server && node server.js",
     "server:dev": "cd contractgenius/server && npm run dev",
     "contractgenius": "cd contractgenius && npm run dev",
