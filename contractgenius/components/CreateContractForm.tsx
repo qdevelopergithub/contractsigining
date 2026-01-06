@@ -227,26 +227,24 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
       const newContract = createContract(finalDetails, draftText);
       setGeneratedLink(magicLink);
 
-      // 4. Send Email via Google Apps Script
-      if (scriptUrl) {
-        try {
-          await fetch(scriptUrl, {
-            method: 'POST',
-            mode: 'no-cors',
-            headers: { 'Content-Type': 'text/plain' },
-            body: JSON.stringify({
-              action: "send_signing_link",
-              fullName: formData.name,
-              email: formData.email,
-              companyName: formData.company,
-              signingLink: magicLink
-            })
-          });
-          alert(`Contract Generated!\n\nEmail sent to ${formData.email} via Google Apps Script.`);
-        } catch (netError) {
-          console.error(netError);
-          alert("Contract generated, but failed to call Google Apps Script. Check the console.");
-        }
+      // 4. Send Email via Make.com Webhook (Unified Flow)
+      const MAKE_WEBHOOK_URL = "https://hook.us2.make.com/ihncxlrp5nekfz7h2kmy5hni4lv0ct6w";
+
+      try {
+        await fetch(MAKE_WEBHOOK_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: "submit_vendor_data",
+            submissionLink: magicLink,
+            email: formData.email,
+            data: payload
+          })
+        });
+        alert(`Contract Generated!\n\nEmail for signing link triggered via Make.com.`);
+      } catch (webhookError) {
+        console.error("Make.com Webhook Error:", webhookError);
+        alert("Contract generated, but failed to trigger Make.com email. Check the console.");
       }
 
       navigate(`#/contract/${newContract.id}`);
