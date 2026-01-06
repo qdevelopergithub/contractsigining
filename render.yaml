@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: contract-genius-backend
+    env: node
+    plan: free
+    rootDir: contractgenius/server
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: MAKE_WEBHOOK_URL
+        value: https://hook.us2.make.com/ihncxlrp5nekfz7h2kmy5hni4lv0ct6w
+      - key: DRIVE_FOLDER_ID
+        value: 128nIyVuoTQh1i1ZLO4Mrpc4RF7ylK0w3
+      - key: FRONTEND_URL
+        sync: false
