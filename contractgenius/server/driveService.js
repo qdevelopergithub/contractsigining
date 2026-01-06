@@ -11,10 +11,27 @@ const stream = require('stream');
 const KEYFILEPATH = path.join(__dirname, 'service-account-key.json');
 const SCOPES = ['https://www.googleapis.com/auth/drive'];
 
-const auth = new google.auth.GoogleAuth({
-    keyFile: KEYFILEPATH,
-    scopes: SCOPES,
-});
+// Support credentials from environment variable (for cloud) or file (for local)
+let auth;
+if (process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
+    try {
+        const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
+        auth = new google.auth.GoogleAuth({
+            credentials,
+            scopes: SCOPES,
+        });
+        console.log('🔐 Drive Auth: Using credentials from environment variable');
+    } catch (e) {
+        console.error('⚠️ Failed to parse GOOGLE_SERVICE_ACCOUNT_JSON:', e.message);
+    }
+}
+
+if (!auth) {
+    auth = new google.auth.GoogleAuth({
+        keyFile: KEYFILEPATH,
+        scopes: SCOPES,
+    });
+}
 
 const drive = google.drive({ version: 'v3', auth });
 (async () => {

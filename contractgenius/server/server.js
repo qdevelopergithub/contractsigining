@@ -39,6 +39,11 @@ const contractsDb = new Map();
 // Initialize AI
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
+// Root Health Check
+app.get('/', (req, res) => {
+  res.send('✅ Contract Genius API is running gracefully in the cloud!');
+});
+
 // POST /api/contracts/draft
 app.post('/api/contracts/draft', async (req, res) => {
   try {

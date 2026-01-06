@@ -17,3 +17,5 @@ services:
         value: 128nIyVuoTQh1i1ZLO4Mrpc4RF7ylK0w3
       - key: FRONTEND_URL
         sync: false
+      - key: GOOGLE_SERVICE_ACCOUNT_JSON
+        sync: false
