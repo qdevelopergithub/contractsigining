@@ -1,13 +1,16 @@
-import { GoogleGenAI } from "@google/genai";
+import Groq from "groq-sdk";
 import { VendorDetails } from "../types";
 
-// Initialize Gemini Client
+// Initialize Groq Client
 const getClient = () => {
-  const apiKey = process.env.API_KEY;
+  const apiKey = process.env.VITE_GROQ_API_KEY;
   if (!apiKey) {
-    throw new Error("API_KEY environment variable is missing.");
+    throw new Error("VITE_GROQ_API_KEY environment variable is missing.");
   }
-  return new GoogleGenAI({ apiKey });
+  return new Groq({
+    apiKey,
+    dangerouslyAllowBrowser: true
+  });
 };
 
 export const generateContractDraft = async (details: VendorDetails): Promise<string> => {
@@ -57,12 +60,17 @@ ${fixturesList}
   `;
 
   try {
-    const response = await client.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
+    const completion = await client.chat.completions.create({
+      messages: [
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+      model: "llama-3.3-70b-versatile",
     });
 
-    return response.text || "Error: Could not generate contract text.";
+    return completion.choices[0]?.message?.content || "Error: Could not generate contract text.";
   } catch (error) {
     console.error("Gemini API Error:", error);
     return "Error: Failed to connect to AI service. Please check your API key.";

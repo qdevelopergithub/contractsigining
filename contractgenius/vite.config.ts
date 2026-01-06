@@ -14,7 +14,8 @@ export default defineConfig(({ mode }) => {
     define: {
       'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
       'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-      'process.env.VITE_BACKEND_URL': JSON.stringify(env.VITE_BACKEND_URL)
+      'process.env.VITE_BACKEND_URL': JSON.stringify(env.VITE_BACKEND_URL),
+      'process.env.VITE_GROQ_API_KEY': JSON.stringify(env.VITE_GROQ_API_KEY)
     },
     resolve: {
       alias: {
