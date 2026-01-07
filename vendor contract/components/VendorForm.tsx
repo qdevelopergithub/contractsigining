@@ -17,15 +17,15 @@ const CATEGORY_OPTIONS = [
 ];
 
 const COUNTRY_CODES = [
-  { code: '+1', label: 'US (+1)' },
-  { code: '+44', label: 'UK (+44)' },
-  { code: '+91', label: 'IN (+91)' },
-  { code: '+61', label: 'AU (+61)' },
-  { code: '+971', label: 'UAE (+971)' },
-  { code: '+33', label: 'FR (+33)' },
-  { code: '+49', label: 'DE (+49)' },
-  { code: '+81', label: 'JP (+81)' },
-  { code: '+86', label: 'CN (+86)' },
+  { code: '+1', label: 'US (+1)', length: 10 },
+  { code: '+44', label: 'UK (+44)', length: 10 },
+  { code: '+91', label: 'IN (+91)', length: 10 },
+  { code: '+61', label: 'AU (+61)', length: 9 },
+  { code: '+971', label: 'UAE (+971)', length: 9 },
+  { code: '+33', label: 'FR (+33)', length: 9 },
+  { code: '+49', label: 'DE (+49)', length: 10 },
+  { code: '+81', label: 'JP (+81)', length: 10 },
+  { code: '+86', label: 'CN (+86)', length: 11 },
 ];
 
 const VendorForm: React.FC<VendorFormProps> = ({
@@ -51,8 +51,13 @@ const VendorForm: React.FC<VendorFormProps> = ({
     }
     if (!data.phone?.trim()) {
       newErrors.phone = "Phone Number is required";
-    } else if (!/^\d+$/.test(data.phone)) {
-      newErrors.phone = "Please enter a valid numeric number (integers only)";
+    } else {
+      const country = COUNTRY_CODES.find(c => c.code === data.countryCode);
+      if (country && data.phone.length !== country.length) {
+        newErrors.phone = `Phone number must be exactly ${country.length} digits for ${country.label.split(' ')[0]}`;
+      } else if (!/^\d+$/.test(data.phone)) {
+        newErrors.phone = "Please enter a valid numeric number (integers only)";
+      }
     }
     if (!data.address?.trim()) newErrors.address = "Address is required";
 
@@ -89,6 +94,14 @@ const VendorForm: React.FC<VendorFormProps> = ({
   const currentTotalFixtures = data.selectedFixtures.reduce((sum, f) => sum + f.quantity, 0);
 
   const handleChange = (field: keyof VendorFormData, value: any) => {
+    // Restricted Phone Length logic
+    if (field === 'phone') {
+      const country = COUNTRY_CODES.find(c => c.code === data.countryCode);
+      const digitsOnly = String(value).replace(/\D/g, '');
+      if (country && digitsOnly.length > country.length) return;
+      value = digitsOnly;
+    }
+
     const newData = { ...data, [field]: value };
 
     if (field === 'boothSize' || field === 'customBoothSize' || field === 'customBoothRequirements') {
@@ -144,6 +157,14 @@ const VendorForm: React.FC<VendorFormProps> = ({
   };
 
   const handleAdditionalContactChange = (field: string, value: string) => {
+    // Restricted Phone Length logic
+    if (field === 'phone') {
+      const country = COUNTRY_CODES.find(c => c.code === data.additionalContact.countryCode);
+      const digitsOnly = value.replace(/\D/g, '');
+      if (country && digitsOnly.length > country.length) return;
+      value = digitsOnly;
+    }
+
     onChange({
       ...data,
       additionalContact: {
@@ -184,8 +205,8 @@ const VendorForm: React.FC<VendorFormProps> = ({
                 placeholder="Acme Corp"
                 required
               />
-              {errors.companyName && <p className="text-red-500 text-xs mt-1">{errors.companyName}</p>}
             </div>
+            {errors.companyName && <p className="text-red-500 text-xs mt-1">{errors.companyName}</p>}
           </div>
 
           <div className="col-span-full md:col-span-1">
@@ -204,8 +225,8 @@ const VendorForm: React.FC<VendorFormProps> = ({
                 placeholder="Brand Identity"
                 required
               />
-              {errors.brandName && <p className="text-red-500 text-xs mt-1">{errors.brandName}</p>}
             </div>
+            {errors.brandName && <p className="text-red-500 text-xs mt-1">{errors.brandName}</p>}
             <p className={helperClass}>As it will appear on Booth ID</p>
           </div>
 
@@ -278,8 +299,8 @@ const VendorForm: React.FC<VendorFormProps> = ({
                 placeholder="John Doe"
                 required
               />
-              {errors.contactName && <p className="text-red-500 text-xs mt-1">{errors.contactName}</p>}
             </div>
+            {errors.contactName && <p className="text-red-500 text-xs mt-1">{errors.contactName}</p>}
           </div>
 
           <div>
@@ -312,8 +333,8 @@ const VendorForm: React.FC<VendorFormProps> = ({
                 placeholder="john@company.com"
                 required
               />
-              {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
             </div>
+            {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
           </div>
 
           <div>
@@ -345,8 +366,8 @@ const VendorForm: React.FC<VendorFormProps> = ({
                   placeholder="Enter numbers only"
                   required
                 />
-                {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone}</p>}
               </div>
+              {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone}</p>}
             </div>
           </div>
 
@@ -365,8 +386,8 @@ const VendorForm: React.FC<VendorFormProps> = ({
                 placeholder="Street Address, City, State, ZIP, Country"
                 required
               />
-              {errors.address && <p className="text-red-500 text-xs mt-1 font-normal ml-1">{errors.address}</p>}
             </div>
+            {errors.address && <p className="text-red-500 text-xs mt-1 font-normal ml-1">{errors.address}</p>}
           </div>
         </div>
       </section>

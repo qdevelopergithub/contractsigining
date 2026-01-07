@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { VendorDetails } from '../types';
 import { generateContractDraft } from '../services/gemini';
 import { createContract } from '../services/storage';
-import { Sparkles, Send, Loader2, Settings, Copy, Check } from 'lucide-react';
+import { Sparkles, Send, Loader2, Settings, Copy, Check, Building2, FileCheck, ShoppingCart, Globe, Instagram, User, Mail, Phone, MapPin, FileText, Plus, LayoutGrid } from 'lucide-react';
 
 interface Props {
   navigate: (path: string) => void;
@@ -12,9 +12,7 @@ interface Props {
 
 export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
   const [loading, setLoading] = useState(false);
-  // DEFAULT URL set to your specific script
-  const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzAjV1kJRnqHrh_e3QRnKrTRiSnM2TGGZfIhSGP2jUc_IZv-44yO-jAq_668MdsYEZtGA/exec';
-  const [scriptUrl, setScriptUrl] = useState(localStorage.getItem('gas_url') || DEFAULT_SCRIPT_URL);
+  const [scriptUrl, setScriptUrl] = useState(localStorage.getItem('gas_url') || '');
   const [showConfig, setShowConfig] = useState(false);
   const [generatedLink, setGeneratedLink] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -49,15 +47,15 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
   });
 
   const COUNTRY_CODES = [
-    { code: '+1', label: 'US (+1)' },
-    { code: '+44', label: 'UK (+44)' },
-    { code: '+91', label: 'IN (+91)' },
-    { code: '+61', label: 'AU (+61)' },
-    { code: '+971', label: 'UAE (+971)' },
-    { code: '+33', label: 'FR (+33)' },
-    { code: '+49', label: 'DE (+49)' },
-    { code: '+81', label: 'JP (+81)' },
-    { code: '+86', label: 'CN (+86)' },
+    { code: '+1', label: 'US (+1)', length: 10 },
+    { code: '+44', label: 'UK (+44)', length: 10 },
+    { code: '+91', label: 'IN (+91)', length: 10 },
+    { code: '+61', label: 'AU (+61)', length: 9 },
+    { code: '+971', label: 'UAE (+971)', length: 9 },
+    { code: '+33', label: 'FR (+33)', length: 9 },
+    { code: '+49', label: 'DE (+49)', length: 10 },
+    { code: '+81', label: 'JP (+81)', length: 10 },
+    { code: '+86', label: 'CN (+86)', length: 11 },
   ];
 
   const CATEGORY_OPTIONS = [
@@ -81,10 +79,30 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
+
+    // Restricted Phone Length logic
+    if (name === 'phone') {
+      const country = COUNTRY_CODES.find(c => c.code === formData.countryCode);
+      const digitsOnly = value.replace(/\D/g, ''); // Ensure only numbers
+      if (country && digitsOnly.length > country.length) return; // Block typing
+      setFormData(prev => ({ ...prev, [name]: digitsOnly }));
+      return;
+    }
+
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleAdditionalContactChange = (field: string, value: string) => {
+    const countryCode = formData.additionalContact?.countryCode || '+1';
+
+    // Restricted Phone Length logic
+    if (field === 'phone') {
+      const country = COUNTRY_CODES.find(c => c.code === countryCode);
+      const digitsOnly = value.replace(/\D/g, '');
+      if (country && digitsOnly.length > country.length) return;
+      value = digitsOnly;
+    }
+
     setFormData(prev => ({
       ...prev,
       additionalContact: {
@@ -152,8 +170,13 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
     }
     if (!formData.phone?.trim()) {
       newErrors.phone = "Phone Number is required";
-    } else if (!/^\d+$/.test(formData.phone)) {
-      newErrors.phone = "Please enter a valid numeric number (integers only)";
+    } else {
+      const country = COUNTRY_CODES.find(c => c.code === formData.countryCode);
+      if (country && formData.phone.length !== country.length) {
+        newErrors.phone = `Phone number must be exactly ${country.length} digits for ${country.label.split(' ')[0]}`;
+      } else if (!/^\d+$/.test(formData.phone)) {
+        newErrors.phone = "Please enter a valid numeric number (integers only)";
+      }
     }
     if (!formData.address?.trim()) newErrors.address = "Address is required";
     if (!formData.eventDate) newErrors.eventDate = "Event Date is required";
@@ -257,8 +280,10 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
     }
   };
 
-  const labelClass = "block text-sm font-medium text-gray-700 mb-1";
-  const inputClass = "w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition";
+  const labelClass = "block text-sm font-medium text-slate-700 mb-1";
+  const inputClass = "w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent outline-none transition-all";
+  const iconClass = "absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400";
+  const helperClass = "text-[10px] text-slate-400 mt-1 ml-1";
 
   return (
     <div className="max-w-3xl mx-auto">
@@ -295,44 +320,61 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
           <h2 className="text-lg font-bold text-gray-900 border-b pb-2">Exhibitor Information</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="md:col-span-2">
-              <label className={labelClass}>Company Name</label>
-              <input
-                name="company"
-                className={`${inputClass} ${errors.company ? 'border-red-500 ring-2 ring-red-100' : ''}`}
-                value={formData.company}
-                onChange={(e) => {
-                  handleChange(e);
-                  if (errors.company) setErrors(prev => ({ ...prev, company: '' }));
-                }}
-              />
+              <label className={labelClass}>Company Name <span className="text-red-500">*</span></label>
+              <div className="relative">
+                <Building2 className={iconClass} />
+                <input
+                  name="company"
+                  className={`${inputClass} ${errors.company ? 'border-red-500 ring-2 ring-red-100' : ''}`}
+                  value={formData.company}
+                  onChange={(e) => {
+                    handleChange(e);
+                    if (errors.company) setErrors(prev => ({ ...prev, company: '' }));
+                  }}
+                  placeholder="Acme Corp"
+                />
+              </div>
               {errors.company && <p className="text-red-500 text-xs mt-1">{errors.company}</p>}
             </div>
             <div>
-              <label className={labelClass}>Brand Name</label>
-              <input
-                name="brandName"
-                className={`${inputClass} ${errors.brandName ? 'border-red-500 ring-2 ring-red-100' : ''}`}
-                value={formData.brandName}
-                onChange={(e) => {
-                  handleChange(e);
-                  if (errors.brandName) setErrors(prev => ({ ...prev, brandName: '' }));
-                }}
-              />
+              <label className={labelClass}>Brand Name <span className="text-red-500">*</span></label>
+              <div className="relative">
+                <FileCheck className={iconClass} />
+                <input
+                  name="brandName"
+                  className={`${inputClass} ${errors.brandName ? 'border-red-500 ring-2 ring-red-100' : ''}`}
+                  value={formData.brandName}
+                  onChange={(e) => {
+                    handleChange(e);
+                    if (errors.brandName) setErrors(prev => ({ ...prev, brandName: '' }));
+                  }}
+                  placeholder="Brand Identity"
+                />
+              </div>
               {errors.brandName && <p className="text-red-500 text-xs mt-1">{errors.brandName}</p>}
-              <p className="text-[10px] text-gray-400 mt-1">As it will appear on Booth ID</p>
+              <p className={helperClass}>As it will appear on Booth ID</p>
             </div>
             <div>
               <label className={labelClass}>Showroom Name</label>
-              <input name="showroomName" className={inputClass} value={formData.showroomName} onChange={handleChange} />
-              <p className="text-[10px] text-gray-400 mt-1">As it will appear on Booth ID</p>
+              <div className="relative">
+                <ShoppingCart className={iconClass} />
+                <input name="showroomName" className={inputClass} value={formData.showroomName} onChange={handleChange} placeholder="Showroom 123" />
+              </div>
+              <p className={helperClass}>As it will appear on Booth ID</p>
             </div>
             <div>
               <label className={labelClass}>Website</label>
-              <input type="url" name="website" className={inputClass} value={formData.website} onChange={handleChange} />
+              <div className="relative">
+                <Globe className={iconClass} />
+                <input type="url" name="website" className={inputClass} value={formData.website} onChange={handleChange} placeholder="https://www.company.com" />
+              </div>
             </div>
             <div>
               <label className={labelClass}>Instagram Handle</label>
-              <input name="instagram" className={inputClass} value={formData.instagram} onChange={handleChange} />
+              <div className="relative">
+                <Instagram className={iconClass} />
+                <input name="instagram" className={inputClass} value={formData.instagram} onChange={handleChange} placeholder="@username" />
+              </div>
             </div>
           </div>
         </div>
@@ -342,50 +384,65 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
           <h2 className="text-lg font-bold text-gray-900 border-b pb-2">Primary Contact Details</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className={labelClass}>Contact Name</label>
-              <input
-                name="name"
-                className={`${inputClass} ${errors.name ? 'border-red-500 ring-2 ring-red-100' : ''}`}
-                value={formData.name}
-                onChange={(e) => {
-                  handleChange(e);
-                  if (errors.name) setErrors(prev => ({ ...prev, name: '' }));
-                }}
-              />
+              <label className={labelClass}>Contact Name <span className="text-red-500">*</span></label>
+              <div className="relative">
+                <User className={iconClass} />
+                <input
+                  name="name"
+                  className={`${inputClass} ${errors.name ? 'border-red-500 ring-2 ring-red-100' : ''}`}
+                  value={formData.name}
+                  onChange={(e) => {
+                    handleChange(e);
+                    if (errors.name) setErrors(prev => ({ ...prev, name: '' }));
+                  }}
+                  placeholder="John Doe"
+                />
+              </div>
               {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
             </div>
             <div>
               <label className={labelClass}>Title</label>
-              <input name="title" className={inputClass} value={formData.title} onChange={handleChange} />
+              <div className="relative">
+                <FileText className={iconClass} />
+                <input name="title" className={inputClass} value={formData.title} onChange={handleChange} placeholder="Managing Director" />
+              </div>
             </div>
             <div>
-              <label className={labelClass}>Email Address</label>
-              <input
-                type="email"
-                name="email"
-                className={`${inputClass} ${errors.email ? 'border-red-500 ring-2 ring-red-100' : ''}`}
-                value={formData.email}
-                onChange={(e) => {
-                  handleChange(e);
-                  if (errors.email) setErrors(prev => ({ ...prev, email: '' }));
-                }}
-              />
+              <label className={labelClass}>Email Address <span className="text-red-500">*</span></label>
+              <div className="relative">
+                <Mail className={iconClass} />
+                <input
+                  type="email"
+                  name="email"
+                  className={`${inputClass} ${errors.email ? 'border-red-500 ring-2 ring-red-100' : ''}`}
+                  value={formData.email}
+                  onChange={(e) => {
+                    handleChange(e);
+                    if (errors.email) setErrors(prev => ({ ...prev, email: '' }));
+                  }}
+                  placeholder="john@company.com"
+                />
+              </div>
               {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
             </div>
             <div>
-              <label className={labelClass}>Phone Number</label>
+              <label className={labelClass}>Phone Number <span className="text-red-500">*</span></label>
               <div className="flex gap-2">
-                <select
-                  name="countryCode"
-                  className="w-24 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none transition"
-                  value={formData.countryCode}
-                  onChange={handleChange}
-                >
-                  {COUNTRY_CODES.map(c => (
-                    <option key={c.code} value={c.code}>{c.label}</option>
-                  ))}
-                </select>
-                <div className="flex-1">
+                <div className="relative w-24">
+                  <Globe className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400" />
+                  <select
+                    name="countryCode"
+                    className="w-full pl-7 pr-2 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-accent outline-none transition appearance-none bg-white text-xs"
+                    value={formData.countryCode}
+                    onChange={handleChange}
+                  >
+                    {COUNTRY_CODES.map(c => (
+                      <option key={c.code} value={c.code}>{c.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex-1 relative">
+                  <Phone className={iconClass} />
                   <input
                     name="phone"
                     className={`${inputClass} ${errors.phone ? 'border-red-500 ring-2 ring-red-100' : ''}`}
@@ -394,24 +451,28 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
                       handleChange(e);
                       if (errors.phone) setErrors(prev => ({ ...prev, phone: '' }));
                     }}
-                    placeholder="Enter numbers only"
+                    placeholder="Numbers only"
                   />
-                  {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone}</p>}
                 </div>
               </div>
+              {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone}</p>}
             </div>
             <div className="md:col-span-2">
-              <label className={labelClass}>Company Address</label>
-              <textarea
-                name="address"
-                rows={2}
-                className={`${inputClass} ${errors.address ? 'border-red-500 ring-2 ring-red-100' : ''}`}
-                value={formData.address}
-                onChange={(e) => {
-                  handleChange(e);
-                  if (errors.address) setErrors(prev => ({ ...prev, address: '' }));
-                }}
-              />
+              <label className={labelClass}>Company Address <span className="text-red-500">*</span></label>
+              <div className="relative">
+                <MapPin className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
+                <textarea
+                  name="address"
+                  rows={2}
+                  className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent outline-none transition-all ${errors.address ? 'border-red-500 ring-2 ring-red-100' : 'border-slate-300'}`}
+                  value={formData.address}
+                  onChange={(e) => {
+                    handleChange(e);
+                    if (errors.address) setErrors(prev => ({ ...prev, address: '' }));
+                  }}
+                  placeholder="Street Address, City, State, ZIP, Country"
+                />
+              </div>
               {errors.address && <p className="text-red-500 text-xs mt-1">{errors.address}</p>}
             </div>
           </div>
@@ -423,44 +484,56 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className={labelClass}>Name</label>
-              <input
-                name="altName"
-                className={inputClass}
-                value={formData.additionalContact?.name || ''}
-                onChange={(e) => handleAdditionalContactChange('name', e.target.value)}
-                placeholder="Alternative Contact Name"
-              />
+              <div className="relative">
+                <User className={iconClass} />
+                <input
+                  name="altName"
+                  className={inputClass}
+                  value={formData.additionalContact?.name || ''}
+                  onChange={(e) => handleAdditionalContactChange('name', e.target.value)}
+                  placeholder="Alternative Contact Name"
+                />
+              </div>
             </div>
             <div>
               <label className={labelClass}>Email Address</label>
-              <input
-                type="email"
-                name="altEmail"
-                className={inputClass}
-                value={formData.additionalContact?.email || ''}
-                onChange={(e) => handleAdditionalContactChange('email', e.target.value)}
-                placeholder="alt@company.com"
-              />
+              <div className="relative">
+                <Mail className={iconClass} />
+                <input
+                  type="email"
+                  name="altEmail"
+                  className={inputClass}
+                  value={formData.additionalContact?.email || ''}
+                  onChange={(e) => handleAdditionalContactChange('email', e.target.value)}
+                  placeholder="alt@company.com"
+                />
+              </div>
             </div>
             <div className="md:col-span-2">
               <label className={labelClass}>Contact Number</label>
               <div className="flex gap-3">
-                <select
-                  className="w-32 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
-                  value={formData.additionalContact?.countryCode || '+1'}
-                  onChange={(e) => handleAdditionalContactChange('countryCode', e.target.value)}
-                >
-                  {COUNTRY_CODES.map(c => (
-                    <option key={c.code} value={c.code}>{c.label}</option>
-                  ))}
-                </select>
-                <input
-                  type="tel"
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
-                  value={formData.additionalContact?.phone || ''}
-                  onChange={(e) => handleAdditionalContactChange('phone', e.target.value)}
-                  placeholder="555-000-0000"
-                />
+                <div className="relative w-32 shrink-0">
+                  <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <select
+                    className="w-full pl-10 pr-2 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-accent outline-none appearance-none bg-white text-xs"
+                    value={formData.additionalContact?.countryCode || '+1'}
+                    onChange={(e) => handleAdditionalContactChange('countryCode', e.target.value)}
+                  >
+                    {COUNTRY_CODES.map(c => (
+                      <option key={c.code} value={c.code}>{c.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="relative flex-1">
+                  <Phone className={iconClass} />
+                  <input
+                    type="tel"
+                    className={inputClass}
+                    value={formData.additionalContact?.phone || ''}
+                    onChange={(e) => handleAdditionalContactChange('phone', e.target.value)}
+                    placeholder="555-000-0000"
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -495,79 +568,88 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
           <div className="space-y-4">
             <div>
               <label className={labelClass}>Booth Size</label>
-              <select
-                name="boothSize"
-                className={inputClass}
-                value={formData.boothSize}
-                onChange={(e) => {
-                  const size = e.target.value;
-                  const qty = calculateTotalQuota(size, formData.customBoothSize);
-                  let finalDesc = size;
-                  if (size === "Custom Fixture") {
-                    const units = formData.customBoothSize || '7.0+';
-                    const details = formData.customBoothRequirements || 'Custom Dimensions';
-                    finalDesc = `${units} Custom || ${details} || (${qty} Fixtures)`;
-                  }
-
-                  const newFixtures = [...formData.selectedFixtures];
-                  if (newFixtures.length === 1) newFixtures[0].quantity = qty;
-
-                  setFormData({ ...formData, boothSize: size, finalBoothSize: finalDesc, selectedFixtures: newFixtures });
-                }}
-              >
-                {[
-                  "1 Standard || 13' x 8' || (4 Fixtures)",
-                  "1.5 Standard || 20' x 8' || (6 Fixtures)",
-                  "2 Standard || (8 Fixtures)",
-                  "2.5 Standard || (10 Fixtures)",
-                  "3 Standard || (12 Fixtures)",
-                  "Accessory Booth (2 Fixtures)",
-                  "Accessory Booth (3 Fixtures)",
-                  "Custom Fixture"
-                ].map(size => (
-                  <option key={size} value={size}>{size}</option>
-                ))}
-              </select>
-            </div>
-
-            {formData.boothSize === "Custom Fixture" && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 p-4 rounded-lg">
-                <div>
-                  <label className={labelClass}>Custom Units</label>
-                  <input
-                    name="customBoothSize"
-                    className={inputClass}
-                    value={formData.customBoothSize || ''}
-                    onChange={(e) => {
-                      const units = e.target.value;
-                      const qty = calculateTotalQuota("Custom Fixture", units);
+              <div className="relative">
+                <LayoutGrid className={iconClass} />
+                <select
+                  name="boothSize"
+                  className={inputClass + " appearance-none"}
+                  value={formData.boothSize}
+                  onChange={(e) => {
+                    const size = e.target.value;
+                    const qty = calculateTotalQuota(size, formData.customBoothSize);
+                    let finalDesc = size;
+                    if (size === "Custom Fixture") {
+                      const units = formData.customBoothSize || '7.0+';
                       const details = formData.customBoothRequirements || 'Custom Dimensions';
-                      const finalDesc = `${units || 'Custom'} Custom || ${details} || (${qty} Fixtures)`;
-                      const newFixtures = [...formData.selectedFixtures];
-                      if (newFixtures.length === 1) newFixtures[0].quantity = qty;
-                      setFormData({ ...formData, customBoothSize: units, finalBoothSize: finalDesc, selectedFixtures: newFixtures });
-                    }}
-                    placeholder="e.g. 8.5"
-                  />
-                </div>
-                <div>
-                  <label className={labelClass}>Booth Dimensions</label>
-                  <input
-                    name="customBoothRequirements"
-                    className={inputClass}
-                    value={formData.customBoothRequirements || ''}
-                    onChange={(e) => {
-                      const details = e.target.value;
-                      const units = formData.customBoothSize || 'Custom';
-                      const qty = calculateTotalQuota("Custom Fixture", units);
-                      const finalDesc = `${units} Custom || ${details || 'Custom Dimensions'} || (${qty} Fixtures)`;
-                      setFormData({ ...formData, customBoothRequirements: details, finalBoothSize: finalDesc });
-                    }}
-                    placeholder="e.g. 15' x 10'"
-                  />
-                </div>
+                      finalDesc = `${units} Custom || ${details} || (${qty} Fixtures)`;
+                    }
+
+                    const newFixtures = [...formData.selectedFixtures];
+                    if (newFixtures.length === 1) newFixtures[0].quantity = qty;
+
+                    setFormData({ ...formData, boothSize: size, finalBoothSize: finalDesc, selectedFixtures: newFixtures });
+                  }}
+                >
+                  {[
+                    "1 Standard || 13' x 8' || (4 Fixtures)",
+                    "1.5 Standard || 20' x 8' || (6 Fixtures)",
+                    "2 Standard || (8 Fixtures)",
+                    "2.5 Standard || (10 Fixtures)",
+                    "3 Standard || (12 Fixtures)",
+                    "Accessory Booth (2 Fixtures)",
+                    "Accessory Booth (3 Fixtures)",
+                    "Custom Fixture"
+                  ].map(size => (
+                    <option key={size} value={size}>{size}</option>
+                  ))}
+                </select>
               </div>
-            )}
+
+              {formData.boothSize === "Custom Fixture" && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 p-4 rounded-lg">
+                  <div>
+                    <label className={labelClass}>Custom Units</label>
+                    <div className="relative">
+                      <LayoutGrid className={iconClass} />
+                      <input
+                        name="customBoothSize"
+                        className={inputClass}
+                        value={formData.customBoothSize || ''}
+                        onChange={(e) => {
+                          const units = e.target.value;
+                          const qty = calculateTotalQuota("Custom Fixture", units);
+                          const details = formData.customBoothRequirements || 'Custom Dimensions';
+                          const finalDesc = `${units || 'Custom'} Custom || ${details} || (${qty} Fixtures)`;
+                          const newFixtures = [...formData.selectedFixtures];
+                          if (newFixtures.length === 1) newFixtures[0].quantity = qty;
+                          setFormData({ ...formData, customBoothSize: units, finalBoothSize: finalDesc, selectedFixtures: newFixtures });
+                        }}
+                        placeholder="e.g. 8.5"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className={labelClass}>Booth Dimensions</label>
+                    <div className="relative">
+                      <LayoutGrid className={iconClass} />
+                      <input
+                        name="customBoothRequirements"
+                        className={inputClass}
+                        value={formData.customBoothRequirements || ''}
+                        onChange={(e) => {
+                          const details = e.target.value;
+                          const units = formData.customBoothSize || 'Custom';
+                          const qty = calculateTotalQuota("Custom Fixture", units);
+                          const finalDesc = `${units} Custom || ${details || 'Custom Dimensions'} || (${qty} Fixtures)`;
+                          setFormData({ ...formData, customBoothRequirements: details, finalBoothSize: finalDesc });
+                        }}
+                        placeholder="e.g. 15' x 10'"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
 
             <div className="p-4 border rounded-lg space-y-4">
               <div className="flex justify-between items-center text-xs font-bold uppercase tracking-wider text-gray-500">
@@ -609,22 +691,28 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className={labelClass}>Event Date</label>
-                <input
-                  type="date"
-                  name="eventDate"
-                  className={`${inputClass} ${errors.eventDate ? 'border-red-500 ring-2 ring-red-100' : ''}`}
-                  value={formData.eventDate}
-                  onChange={(e) => {
-                    handleChange(e);
-                    if (errors.eventDate) setErrors(prev => ({ ...prev, eventDate: '' }));
-                  }}
-                />
+                <label className={labelClass}>Event Date <span className="text-red-500">*</span></label>
+                <div className="relative">
+                  <FileText className={iconClass} />
+                  <input
+                    type="date"
+                    name="eventDate"
+                    className={`${inputClass} ${errors.eventDate ? 'border-red-500 ring-2 ring-red-100' : ''}`}
+                    value={formData.eventDate}
+                    onChange={(e) => {
+                      handleChange(e);
+                      if (errors.eventDate) setErrors(prev => ({ ...prev, eventDate: '' }));
+                    }}
+                  />
+                </div>
                 {errors.eventDate && <p className="text-red-500 text-xs mt-1">{errors.eventDate}</p>}
               </div>
               <div>
                 <label className={labelClass}>Final Confirmation (Editable)</label>
-                <input name="finalBoothSize" className="w-full px-4 py-2 border border-indigo-200 rounded-lg text-xs font-mono" value={formData.finalBoothSize} onChange={handleChange} />
+                <div className="relative">
+                  <Check className={iconClass} />
+                  <input name="finalBoothSize" className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg text-xs font-mono bg-slate-50" value={formData.finalBoothSize} onChange={handleChange} />
+                </div>
               </div>
             </div>
           </div>
