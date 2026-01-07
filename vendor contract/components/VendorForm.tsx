@@ -367,8 +367,8 @@ const VendorForm: React.FC<VendorFormProps> = ({
                   required
                 />
               </div>
-              {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone}</p>}
             </div>
+            {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone}</p>}
           </div>
 
           <div className="col-span-full">
