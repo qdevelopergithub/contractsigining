@@ -6,7 +6,7 @@ export enum BoothSize {
   THREE_STANDARD = "3 Standard || (12 Fixtures)",
   ACCESSORY_TWO = "Accessory Booth (2 Fixtures)",
   ACCESSORY_THREE = "Accessory Booth (3 Fixtures)",
-  CUSTOM_LARGE = "Custom Fixture"
+  CUSTOM_LARGE = "Custom Booth"
 }
 
 export interface SelectedFixture {
@@ -14,11 +14,10 @@ export interface SelectedFixture {
   quantity: number;
 }
 
-export interface AdditionalContact {
+export interface ContactInfo {
   name: string;
   email: string;
-  phone: string;
-  countryCode: string;
+  title?: string;
 }
 
 export enum FixtureType {
@@ -26,9 +25,6 @@ export enum FixtureType {
   DISPLAY_COUNTER_S = 'Display Counter (Small)',
   SHELVING_UNIT_4FT = 'Shelving Unit (4ft)',
   SHELVING_UNIT_6FT = 'Shelving Unit (6ft)',
-  TABLE_6FT = 'Rectangular Table (6ft)',
-  TABLE_4FT = 'Rectangular Table (4ft)',
-  CHAIR_STANDARD = 'Standard Exhibition Chair',
   CLOTHING_RAIL = 'Clothing Rail / Rack',
   SHOWCASE_CABINET = 'Showcase Cabinet (Glass)',
   BROCHURE_RACK = 'Brochure Rack (Floor Stand)',
@@ -44,20 +40,29 @@ export enum PaymentMode {
 
 export type AppStatus = 'IDLE' | 'GENERATING' | 'SENDING' | 'SENT' | 'SIGNING' | 'SIGNED';
 
-export interface VendorFormData {
-  // Exhibitor Info
-  companyName: string;
+export enum ExhibitorType {
+  BRAND = 'Brand',
+  MULTI_LINE_SHOWROOM = 'Multi-line showroom'
+}
+
+export interface BrandInfo {
   brandName: string;
   showroomName?: string;
   website?: string;
   instagram?: string;
+}
 
-  // Primary Contact
-  contactName: string;
-  title?: string;
+export interface VendorFormData {
+  // Exhibitor Info
+  exhibitorType: ExhibitorType;
+  brands: BrandInfo[];
+  companyName: string; // Keep companyName as it's often needed for billing/legal
+
+  // Contacts
+  contacts: ContactInfo[];
+
+  // Primary Contact (Legacy fields for single contact access if needed, but we'll use contacts[0])
   email: string;
-  phone: string;
-  countryCode: string;
   address: string;
 
   // Categories
@@ -73,9 +78,6 @@ export interface VendorFormData {
   // Multi-Fixture Support
   selectedFixtures: SelectedFixture[];
 
-  // Additional Contact (Included in contract but not used for sending)
-  additionalContact: AdditionalContact;
-
   // Legacy fields (kept for compatibility in some logic, but will map to selectedFixtures)
   fixture: FixtureType;
   fixtureQuantity: number;
@@ -84,27 +86,16 @@ export interface VendorFormData {
 }
 
 export const INITIAL_FORM_DATA: VendorFormData = {
+  exhibitorType: ExhibitorType.BRAND,
+  brands: [{ brandName: '', showroomName: '', website: '', instagram: '' }],
   companyName: '',
-  brandName: '',
-  showroomName: '',
-  website: '',
-  instagram: '',
-  contactName: '',
-  title: '',
+  contacts: [{ name: '', email: '', title: '' }],
   email: '',
-  phone: '',
-  countryCode: '+1',
   address: '',
   categories: [],
   otherCategory: '',
   boothSize: BoothSize.ONE_STANDARD,
   selectedFixtures: [{ type: FixtureType.DISPLAY_COUNTER_L, quantity: 4 }],
-  additionalContact: {
-    name: '',
-    email: '',
-    phone: '',
-    countryCode: '+1'
-  },
   fixture: FixtureType.DISPLAY_COUNTER_L,
   fixtureQuantity: 4,
   paymentMode: PaymentMode.CREDIT_CARD,

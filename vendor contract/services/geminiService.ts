@@ -10,6 +10,8 @@ export const generateVendorContract = async (data: VendorFormData): Promise<stri
   // Use a capable model on Groq
   const modelId = "llama-3.3-70b-versatile";
 
+  const brandsList = data.brands.map(b => `- ${b.brandName}${b.showroomName ? ` (${b.showroomName})` : ''}${b.website ? `, Website: ${b.website}` : ''}${b.instagram ? `, IG: ${b.instagram}` : ''}`).join('\n') || '- N/A';
+  const contactsList = data.contacts.map(c => `- ${c.name}${c.title ? ` (${c.title})` : ''}, Email: ${c.email}`).join('\n') || `- ${data.email}`;
   const fixturesList = data.selectedFixtures.map(f => `- ${f.type} (Qty: ${f.quantity})`).join('\n');
   const categoriesList = data.categories.join(', ') + (data.categories.includes('Other') && data.otherCategory ? ` (${data.otherCategory})` : '');
 
@@ -17,30 +19,20 @@ export const generateVendorContract = async (data: VendorFormData): Promise<stri
     Generate a professional, legally structured service contract for a trade show or exhibition vendor.
     
     Exhibitor Information:
+    - Exhibitor Type: ${data.exhibitorType}
     - Company Name: ${data.companyName}
-    - Brand Name: ${data.brandName}
-    - Showroom Name: ${data.showroomName || 'N/A'}
-    - Website: ${data.website || 'N/A'}
-    - Instagram: ${data.instagram || 'N/A'}
+    - Brands:
+${brandsList}
     
-    Primary Contact Details:
-    - Contact Name: ${data.contactName}
-    - Title: ${data.title || 'N/A'}
-    - Contact Email: ${data.email}
-    - Phone Number: ${data.countryCode} ${data.phone}
+    Contact Details:
+${contactsList}
     - Company Address: ${data.address}
-
-    Additional Contact (For Reference):
-    - Name: ${data.additionalContact.name || 'N/A'}
-    - Email: ${data.additionalContact.email || 'N/A'}
-    - Phone: ${data.additionalContact.phone ? (data.additionalContact.countryCode + ' ' + data.additionalContact.phone) : 'N/A'}
     
     Categories Being Shown:
     - ${categoriesList}
 
     Booth & Fixture Selection:
     - Booth Size/Type: ${data.finalBoothSize || data.boothSize}
-    ${data.customBoothRequirements ? `- Custom Details: ${data.customBoothRequirements}` : ''}
     - Selected Fixtures:
 ${fixturesList}
     - Payment Method: ${data.paymentMode}

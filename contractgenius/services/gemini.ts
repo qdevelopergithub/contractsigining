@@ -16,6 +16,8 @@ const getClient = () => {
 export const generateContractDraft = async (details: VendorDetails): Promise<string> => {
   const client = getClient();
 
+  const brandsList = details.brands.map(b => `- ${b.brandName}${b.showroomName ? ` (${b.showroomName})` : ''}${b.website ? `, Website: ${b.website}` : ''}${b.instagram ? `, IG: ${b.instagram}` : ''}`).join('\n') || '- N/A';
+  const contactsList = details.contacts.map(c => `- ${c.name}${c.title ? ` (${c.title})` : ''}, Email: ${c.email}`).join('\n') || `- ${details.email}`;
   const fixturesList = details.selectedFixtures?.map(f => `- ${f.type} (Qty: ${f.quantity})`).join('\n') || `- ${details.fixture} (Qty: ${details.fixtureQuantity})`;
   const categoriesList = details.categories?.join(', ') || 'N/A';
 
@@ -23,22 +25,15 @@ export const generateContractDraft = async (details: VendorDetails): Promise<str
     Generate a professional, legally structured service contract for a trade show or exhibition vendor.
     
     Exhibitor Info:
+    - Exhibitor Type: ${details.exhibitorType}
     - Company Name: ${details.company}
-    - Brand Name: ${details.brandName || 'N/A'}
-    - Showroom: ${details.showroomName || 'N/A'}
+    - Brands:
+${brandsList}
     
-    Primary Contact:
-    - Name: ${details.name}
-    - Title: ${details.title || 'N/A'}
-    - Email: ${details.email}
-    - Phone: ${details.countryCode} ${details.phone || 'N/A'}
+    Contact Details:
+${contactsList}
     - Company Address: ${details.address}
 
-    Additional Contact (For Reference):
-    - Name: ${details.additionalContact?.name || 'N/A'}
-    - Email: ${details.additionalContact?.email || 'N/A'}
-    - Phone: ${details.additionalContact?.phone ? (details.additionalContact.countryCode + ' ' + details.additionalContact.phone) : 'N/A'}
-    
     Categories:
     - ${categoriesList}
 

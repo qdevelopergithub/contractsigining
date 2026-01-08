@@ -3,27 +3,30 @@ export interface SelectedFixture {
   quantity: number;
 }
 
-export interface AdditionalContact {
+export interface ContactInfo {
   name: string;
   email: string;
-  phone: string;
-  countryCode: string;
+  title?: string;
 }
 
-export interface VendorDetails {
-  // Exhibitor Info
-  company: string;
+export interface BrandInfo {
   brandName: string;
   showroomName?: string;
   website?: string;
   instagram?: string;
+}
 
-  // Primary Contact
-  name: string;
-  title?: string;
+export interface VendorDetails {
+  // Exhibitor Info
+  exhibitorType: string;
+  brands: BrandInfo[];
+  company: string;
+
+  // Contacts
+  contacts: ContactInfo[];
+
+  // Primary Contact (Legacy fields for single contact access if needed)
   email: string;
-  phone: string;
-  countryCode: string;
   address: string;
 
   // Categories
@@ -38,9 +41,6 @@ export interface VendorDetails {
 
   // Multi-Fixture Support
   selectedFixtures: SelectedFixture[];
-
-  // Additional Contact
-  additionalContact?: AdditionalContact;
 
   // Legacy
   fixture: string;

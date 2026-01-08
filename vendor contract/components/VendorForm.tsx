@@ -1,6 +1,6 @@
 import React from 'react';
-import { VendorFormData, BoothSize, FixtureType, PaymentMode, SelectedFixture } from '../types';
-import { User, Mail, MapPin, Building2, LayoutGrid, Lamp, ShoppingCart, CreditCard, FileText, Send, Loader2, Globe, Instagram, Phone, Plus, Trash2, CheckSquare, FileCheck } from 'lucide-react';
+import { VendorFormData, BoothSize, FixtureType, PaymentMode, SelectedFixture, ExhibitorType, BrandInfo, ContactInfo } from '../types';
+import { User, Mail, MapPin, Building2, LayoutGrid, Lamp, ShoppingCart, CreditCard, FileText, Send, Loader2, Globe, Instagram, Phone, Plus, Trash2, CheckSquare, FileCheck, Layers } from 'lucide-react';
 
 interface VendorFormProps {
   data: VendorFormData;
@@ -28,6 +28,17 @@ const COUNTRY_CODES = [
   { code: '+86', label: 'CN (+86)', length: 11 },
 ];
 
+const VALID_FIXTURES = [
+  FixtureType.DISPLAY_COUNTER_L,
+  FixtureType.DISPLAY_COUNTER_S,
+  FixtureType.SHELVING_UNIT_4FT,
+  FixtureType.SHELVING_UNIT_6FT,
+  FixtureType.CLOTHING_RAIL,
+  FixtureType.SHOWCASE_CABINET,
+  FixtureType.BROCHURE_RACK,
+  FixtureType.POWER_DROP
+];
+
 const VendorForm: React.FC<VendorFormProps> = ({
   data,
   onChange,
@@ -42,23 +53,22 @@ const VendorForm: React.FC<VendorFormProps> = ({
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
     if (!data.companyName?.trim()) newErrors.companyName = "Company Name is required";
-    if (!data.brandName?.trim()) newErrors.brandName = "Brand Name is required";
-    if (!data.contactName?.trim()) newErrors.contactName = "Contact Name is required";
-    if (!data.email?.trim()) {
-      newErrors.email = "Email is required";
-    } else if (!emailRegex.test(data.email)) {
-      newErrors.email = "Invalid email format";
-    }
-    if (!data.phone?.trim()) {
-      newErrors.phone = "Phone Number is required";
-    } else {
-      const country = COUNTRY_CODES.find(c => c.code === data.countryCode);
-      if (country && data.phone.length !== country.length) {
-        newErrors.phone = `Phone number must be exactly ${country.length} digits for ${country.label.split(' ')[0]}`;
-      } else if (!/^\d+$/.test(data.phone)) {
-        newErrors.phone = "Please enter a valid numeric number (integers only)";
+
+    data.brands.forEach((brand, idx) => {
+      if (!brand.brandName?.trim()) {
+        newErrors[`brandName_${idx}`] = "Brand Name is required";
       }
-    }
+    });
+
+    data.contacts.forEach((contact, idx) => {
+      if (!contact.name?.trim()) newErrors[`contactName_${idx}`] = "Contact Name is required";
+      if (!contact.email?.trim()) {
+        newErrors[`contactEmail_${idx}`] = "Email is required";
+      } else if (!emailRegex.test(contact.email)) {
+        newErrors[`contactEmail_${idx}`] = "Invalid email format";
+      }
+    });
+
     if (!data.address?.trim()) newErrors.address = "Address is required";
 
     setErrors(newErrors);
@@ -94,28 +104,18 @@ const VendorForm: React.FC<VendorFormProps> = ({
   const currentTotalFixtures = data.selectedFixtures.reduce((sum, f) => sum + f.quantity, 0);
 
   const handleChange = (field: keyof VendorFormData, value: any) => {
-    // Restricted Phone Length logic
-    if (field === 'phone') {
-      const country = COUNTRY_CODES.find(c => c.code === data.countryCode);
-      const digitsOnly = String(value).replace(/\D/g, '');
-      if (country && digitsOnly.length > country.length) return;
-      value = digitsOnly;
-    }
-
     const newData = { ...data, [field]: value };
 
     if (field === 'boothSize' || field === 'customBoothSize' || field === 'customBoothRequirements') {
       const sizeToUse = field === 'boothSize' ? value as BoothSize : data.boothSize;
       const customSizeToUse = field === 'customBoothSize' ? value as string : data.customBoothSize;
-      const customReqToUse = field === 'customBoothRequirements' ? value as string : data.customBoothRequirements;
 
       const qty = calculateTotalQuota(sizeToUse, customSizeToUse);
 
       // Update final description in professional format
       if (sizeToUse === BoothSize.CUSTOM_LARGE) {
         const units = customSizeToUse || 'Custom';
-        const details = customReqToUse || 'Custom Dimensions';
-        newData.finalBoothSize = `${units} Custom || ${details} || (${qty} Fixtures)`;
+        newData.finalBoothSize = `${units} Custom || (${qty} Fixtures)`;
       } else {
         newData.finalBoothSize = sizeToUse;
       }
@@ -127,6 +127,45 @@ const VendorForm: React.FC<VendorFormProps> = ({
     }
 
     onChange(newData);
+  };
+
+  const handleBrandChange = (index: number, field: keyof BrandInfo, value: string) => {
+    const newBrands = [...data.brands];
+    newBrands[index] = { ...newBrands[index], [field]: value };
+    onChange({ ...data, brands: newBrands });
+  };
+
+  const addBrandRow = () => {
+    onChange({ ...data, brands: [...data.brands, { brandName: '', showroomName: '', website: '', instagram: '' }] });
+  };
+
+  const removeBrandRow = (index: number) => {
+    if (data.brands.length > 1) {
+      onChange({ ...data, brands: data.brands.filter((_, i) => i !== index) });
+    }
+  };
+
+  const handleContactChange = (index: number, field: keyof ContactInfo, value: string) => {
+    const newContacts = [...data.contacts];
+    newContacts[index] = { ...newContacts[index], [field]: value };
+
+    // Update top level email for compatibility if it's the first contact
+    const updates: Partial<VendorFormData> = { contacts: newContacts };
+    if (index === 0 && field === 'email') {
+      updates.email = value;
+    }
+
+    onChange({ ...data, ...updates });
+  };
+
+  const addContactRow = () => {
+    onChange({ ...data, contacts: [...data.contacts, { name: '', email: '', title: '' }] });
+  };
+
+  const removeContactRow = (index: number) => {
+    if (data.contacts.length > 1) {
+      onChange({ ...data, contacts: data.contacts.filter((_, i) => i !== index) });
+    }
   };
 
   const handleFixtureChange = (index: number, field: keyof SelectedFixture, value: any) => {
@@ -156,24 +195,6 @@ const VendorForm: React.FC<VendorFormProps> = ({
     onChange({ ...data, categories: newCategories });
   };
 
-  const handleAdditionalContactChange = (field: string, value: string) => {
-    // Restricted Phone Length logic
-    if (field === 'phone') {
-      const country = COUNTRY_CODES.find(c => c.code === data.additionalContact.countryCode);
-      const digitsOnly = value.replace(/\D/g, '');
-      if (country && digitsOnly.length > country.length) return;
-      value = digitsOnly;
-    }
-
-    onChange({
-      ...data,
-      additionalContact: {
-        ...data.additionalContact,
-        [field]: value
-      }
-    });
-  };
-
   const inputClass = "w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent outline-none transition-all";
   const labelClass = "block text-sm font-medium text-slate-700 mb-1";
   const iconClass = "absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400";
@@ -189,7 +210,23 @@ const VendorForm: React.FC<VendorFormProps> = ({
         </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="col-span-full md:col-span-1">
+          <div className="col-span-full">
+            <label className={labelClass}>Exhibitor Type <span className="text-red-500">*</span></label>
+            <div className="flex gap-4 p-1 bg-slate-50 rounded-xl border border-slate-200">
+              {Object.values(ExhibitorType).map((type) => (
+                <button
+                  key={type}
+                  onClick={() => handleChange('exhibitorType', type)}
+                  className={`flex-1 py-3 px-4 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2 ${data.exhibitorType === type ? 'bg-white shadow-md text-accent border border-slate-100' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  {type === ExhibitorType.BRAND ? <FileCheck className="w-4 h-4" /> : <Layers className="w-4 h-4" />}
+                  {type}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="col-span-full">
             <label className={labelClass}>Company Name <span className="text-red-500">*</span></label>
             <div className="relative">
               <Building2 className={iconClass} />
@@ -209,167 +246,169 @@ const VendorForm: React.FC<VendorFormProps> = ({
             {errors.companyName && <p className="text-red-500 text-xs mt-1">{errors.companyName}</p>}
           </div>
 
-          <div className="col-span-full md:col-span-1">
-            <label className={labelClass}>Brand Name <span className="text-red-500">*</span></label>
-            <div className="relative">
-              <FileCheck className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input
-                type="text"
-                name="brandName"
-                value={data.brandName}
-                onChange={(e) => {
-                  handleChange('brandName', e.target.value);
-                  if (errors.brandName) setErrors(prev => ({ ...prev, brandName: '' }));
-                }}
-                className={`${inputClass} ${errors.brandName ? 'border-red-500 ring-1 ring-red-500' : ''}`}
-                placeholder="Brand Identity"
-                required
-              />
+          {data.exhibitorType === ExhibitorType.BRAND && (
+            <div className="col-span-full space-y-6">
+              {data.brands.map((brand, idx) => (
+                <div key={idx} className="p-4 border border-slate-200 rounded-xl bg-slate-50/50 space-y-4 relative group">
+                  {data.brands.length > 1 && (
+                    <button
+                      onClick={() => removeBrandRow(idx)}
+                      className="absolute top-2 right-2 p-1 text-slate-400 hover:text-red-500 transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Brand Details {data.brands.length > 1 ? `#${idx + 1}` : ''}</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className={labelClass}>Brand Name <span className="text-red-500">*</span></label>
+                      <div className="relative">
+                        <FileCheck className={iconClass} />
+                        <input
+                          type="text"
+                          value={brand.brandName}
+                          onChange={(e) => {
+                            handleBrandChange(idx, 'brandName', e.target.value);
+                            if (errors[`brandName_${idx}`]) setErrors(prev => ({ ...prev, [`brandName_${idx}`]: '' }));
+                          }}
+                          className={`${inputClass} ${errors[`brandName_${idx}`] ? 'border-red-500 ring-1 ring-red-500' : ''}`}
+                          placeholder="Brand Identity"
+                        />
+                      </div>
+                      {errors[`brandName_${idx}`] && <p className="text-red-500 text-xs mt-1">{errors[`brandName_${idx}`]}</p>}
+                    </div>
+                    <div>
+                      <label className={labelClass}>Showroom Name (if applicable)</label>
+                      <div className="relative">
+                        <ShoppingCart className={iconClass} />
+                        <input
+                          type="text"
+                          value={brand.showroomName}
+                          onChange={(e) => handleBrandChange(idx, 'showroomName', e.target.value)}
+                          className={inputClass}
+                          placeholder="Showroom 123"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className={labelClass}>Website URL</label>
+                      <div className="relative">
+                        <Globe className={iconClass} />
+                        <input
+                          type="url"
+                          value={brand.website}
+                          onChange={(e) => handleBrandChange(idx, 'website', e.target.value)}
+                          className={inputClass}
+                          placeholder="https://www.company.com"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className={labelClass}>Instagram Handle</label>
+                      <div className="relative">
+                        <Instagram className={iconClass} />
+                        <input
+                          type="text"
+                          value={brand.instagram}
+                          onChange={(e) => handleBrandChange(idx, 'instagram', e.target.value)}
+                          className={inputClass}
+                          placeholder="@username"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              <button
+                onClick={addBrandRow}
+                className="w-full py-2 border-2 border-dashed border-slate-300 rounded-lg text-slate-500 text-sm font-medium hover:border-accent hover:text-accent transition-all flex items-center justify-center gap-2"
+              >
+                <Plus className="w-4 h-4" />
+                Add Another Brand
+              </button>
             </div>
-            {errors.brandName && <p className="text-red-500 text-xs mt-1">{errors.brandName}</p>}
-            <p className={helperClass}>As it will appear on Booth ID</p>
-          </div>
-
-          <div>
-            <label className={labelClass}>Showroom Name</label>
-            <div className="relative">
-              <ShoppingCart className={iconClass} />
-              <input
-                type="text"
-                value={data.showroomName}
-                onChange={(e) => handleChange('showroomName', e.target.value)}
-                className={inputClass}
-                placeholder="Showroom 123"
-              />
-            </div>
-            <p className={helperClass}>As it will appear on Booth ID</p>
-          </div>
-
-          <div>
-            <label className={labelClass}>Website URL</label>
-            <div className="relative">
-              <Globe className={iconClass} />
-              <input
-                type="url"
-                value={data.website}
-                onChange={(e) => handleChange('website', e.target.value)}
-                className={inputClass}
-                placeholder="https://www.company.com"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className={labelClass}>Instagram Handle</label>
-            <div className="relative">
-              <Instagram className={iconClass} />
-              <input
-                type="text"
-                value={data.instagram}
-                onChange={(e) => handleChange('instagram', e.target.value)}
-                className={inputClass}
-                placeholder="@username"
-              />
-            </div>
-          </div>
+          )}
         </div>
       </section>
 
-      {/* STEP 2: Primary Contact Details */}
+      {/* STEP 2: Contact Details */}
       <section className="bg-white p-6 md:p-8 rounded-xl shadow-lg border border-slate-100">
         <h2 className="text-xl font-bold text-slate-900 mb-6 flex items-center gap-2 border-b pb-4">
           <User className="w-5 h-5 text-accent" />
-          Primary Contact Details
+          Contact Details
         </h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label className={labelClass}>Contact Name <span className="text-red-500">*</span></label>
-            <div className="relative">
-              <User className={iconClass} />
-              <input
-                type="text"
-                name="contactName"
-                value={data.contactName}
-                onChange={(e) => {
-                  handleChange('contactName', e.target.value);
-                  if (errors.contactName) setErrors(prev => ({ ...prev, contactName: '' }));
-                }}
-                className={`${inputClass} ${errors.contactName ? 'border-red-500 ring-1 ring-red-500' : ''}`}
-                placeholder="John Doe"
-                required
-              />
-            </div>
-            {errors.contactName && <p className="text-red-500 text-xs mt-1">{errors.contactName}</p>}
-          </div>
-
-          <div>
-            <label className={labelClass}>Title</label>
-            <div className="relative">
-              <FileText className={iconClass} />
-              <input
-                type="text"
-                value={data.title}
-                onChange={(e) => handleChange('title', e.target.value)}
-                className={inputClass}
-                placeholder="Managing Director"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className={labelClass}>Email Address <span className="text-red-500">*</span></label>
-            <div className="relative">
-              <Mail className={iconClass} />
-              <input
-                type="email"
-                name="email"
-                value={data.email}
-                onChange={(e) => {
-                  handleChange('email', e.target.value);
-                  if (errors.email) setErrors(prev => ({ ...prev, email: '' }));
-                }}
-                className={`${inputClass} ${errors.email ? 'border-red-500 ring-1 ring-red-500' : ''}`}
-                placeholder="john@company.com"
-                required
-              />
-            </div>
-            {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
-          </div>
-
-          <div>
-            <label className={labelClass}>Phone Number <span className="text-red-500">*</span></label>
-            <div className="flex gap-3">
-              <div className="relative w-32 shrink-0">
-                <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <select
-                  value={data.countryCode}
-                  onChange={(e) => handleChange('countryCode', e.target.value)}
-                  className="w-full pl-10 pr-2 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent outline-none transition-all appearance-none bg-white text-sm"
+        <div className="space-y-6">
+          {data.contacts.map((contact, idx) => (
+            <div key={idx} className="p-4 border border-slate-200 rounded-xl bg-slate-50/50 space-y-4 relative group">
+              {data.contacts.length > 1 && (
+                <button
+                  onClick={() => removeContactRow(idx)}
+                  className="absolute top-2 right-2 p-1 text-slate-400 hover:text-red-500 transition-colors"
                 >
-                  {COUNTRY_CODES.map(c => (
-                    <option key={c.code} value={c.code}>{c.label}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="relative flex-1">
-                <Phone className={iconClass} />
-                <input
-                  type="tel"
-                  name="phone"
-                  value={data.phone}
-                  onChange={(e) => {
-                    handleChange('phone', e.target.value);
-                    if (errors.phone) setErrors(prev => ({ ...prev, phone: '' }));
-                  }}
-                  className={`${inputClass} ${errors.phone ? 'border-red-500 ring-1 ring-red-500' : ''}`}
-                  placeholder="Enter numbers only"
-                  required
-                />
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              )}
+              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Contact {data.contacts.length > 1 ? `#${idx + 1}` : ''}</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className={labelClass}>Contact Name <span className="text-red-500">*</span></label>
+                  <div className="relative">
+                    <User className={iconClass} />
+                    <input
+                      type="text"
+                      value={contact.name}
+                      onChange={(e) => {
+                        handleContactChange(idx, 'name', e.target.value);
+                        if (errors[`contactName_${idx}`]) setErrors(prev => ({ ...prev, [`contactName_${idx}`]: '' }));
+                      }}
+                      className={`${inputClass} ${errors[`contactName_${idx}`] ? 'border-red-500 ring-1 ring-red-500' : ''}`}
+                      placeholder="John Doe"
+                    />
+                  </div>
+                  {errors[`contactName_${idx}`] && <p className="text-red-500 text-xs mt-1">{errors[`contactName_${idx}`]}</p>}
+                </div>
+                <div>
+                  <label className={labelClass}>Title</label>
+                  <div className="relative">
+                    <FileText className={iconClass} />
+                    <input
+                      type="text"
+                      value={contact.title}
+                      onChange={(e) => handleContactChange(idx, 'title', e.target.value)}
+                      className={inputClass}
+                      placeholder="Managing Director"
+                    />
+                  </div>
+                </div>
+                <div className="col-span-full">
+                  <label className={labelClass}>Email Address <span className="text-red-500">*</span></label>
+                  <div className="relative">
+                    <Mail className={iconClass} />
+                    <input
+                      type="email"
+                      value={contact.email}
+                      onChange={(e) => {
+                        handleContactChange(idx, 'email', e.target.value);
+                        if (errors[`contactEmail_${idx}`]) setErrors(prev => ({ ...prev, [`contactEmail_${idx}`]: '' }));
+                      }}
+                      className={`${inputClass} ${errors[`contactEmail_${idx}`] ? 'border-red-500 ring-1 ring-red-500' : ''}`}
+                      placeholder="john@company.com"
+                    />
+                  </div>
+                  {errors[`contactEmail_${idx}`] && <p className="text-red-500 text-xs mt-1">{errors[`contactEmail_${idx}`]}</p>}
+                </div>
               </div>
             </div>
-            {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone}</p>}
-          </div>
+          ))}
+
+          <button
+            onClick={addContactRow}
+            className="w-full py-2 border-2 border-dashed border-slate-300 rounded-lg text-slate-500 text-sm font-medium hover:border-accent hover:text-accent transition-all flex items-center justify-center gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            Add Another Contact
+          </button>
 
           <div className="col-span-full">
             <label className={labelClass}>Full Mailing Address <span className="text-red-500">*</span></label>
@@ -388,73 +427,6 @@ const VendorForm: React.FC<VendorFormProps> = ({
               />
             </div>
             {errors.address && <p className="text-red-500 text-xs mt-1 font-normal ml-1">{errors.address}</p>}
-          </div>
-        </div>
-      </section>
-
-      {/* STEP 2.5: Additional Contact Details */}
-      <section className="bg-white p-6 md:p-8 rounded-xl shadow-lg border border-slate-100 border-l-4 border-l-accent">
-        <h2 className="text-xl font-bold text-slate-900 mb-6 flex items-center gap-2 border-b pb-4">
-          <Plus className="w-5 h-5 text-accent" />
-          Additional Contact Details
-        </h2>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label className={labelClass}>Name</label>
-            <div className="relative">
-              <User className={iconClass} />
-              <input
-                type="text"
-                value={data.additionalContact.name}
-                onChange={(e) => handleAdditionalContactChange('name', e.target.value)}
-                className={inputClass}
-                placeholder="Alternative Contact Name"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className={labelClass}>Email Address</label>
-            <div className="relative">
-              <Mail className={iconClass} />
-              <input
-                type="email"
-                value={data.additionalContact.email}
-                onChange={(e) => handleAdditionalContactChange('email', e.target.value)}
-                className={inputClass}
-                placeholder="alt@company.com"
-              />
-            </div>
-            <p className={helperClass}>This email will be in the contract but NOT used for signing delivery.</p>
-          </div>
-
-          <div className="col-span-full">
-            <label className={labelClass}>Contact Number</label>
-            <div className="flex gap-3">
-              <div className="relative w-32 shrink-0">
-                <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <select
-                  value={data.additionalContact.countryCode}
-                  onChange={(e) => handleAdditionalContactChange('countryCode', e.target.value)}
-                  className="w-full pl-10 pr-2 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent outline-none transition-all appearance-none bg-white text-sm"
-                >
-                  {COUNTRY_CODES.map(c => (
-                    <option key={c.code} value={c.code}>{c.label}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="relative flex-1">
-                <Phone className={iconClass} />
-                <input
-                  type="tel"
-                  value={data.additionalContact.phone}
-                  onChange={(e) => handleAdditionalContactChange('phone', e.target.value)}
-                  className={inputClass}
-                  placeholder="555-000-0000"
-                />
-              </div>
-            </div>
           </div>
         </div>
       </section>
@@ -526,25 +498,15 @@ const VendorForm: React.FC<VendorFormProps> = ({
 
             {data.boothSize === BoothSize.CUSTOM_LARGE && (
               <div className="mt-4 p-4 bg-blue-50 border border-blue-100 rounded-lg space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4">
                   <div>
-                    <label className={labelClass}>Custom Units (Number)</label>
+                    <label className={labelClass}>Fixture Count (Number)</label>
                     <input
                       type="text"
                       value={data.customBoothSize || ''}
                       onChange={(e) => handleChange('customBoothSize', e.target.value)}
                       className={inputClass}
                       placeholder="e.g. 8.5"
-                    />
-                  </div>
-                  <div>
-                    <label className={labelClass}>Booth Dimensions</label>
-                    <input
-                      type="text"
-                      value={data.customBoothRequirements || ''}
-                      onChange={(e) => handleChange('customBoothRequirements', e.target.value)}
-                      className={inputClass}
-                      placeholder="e.g. 15' x 10'"
                     />
                   </div>
                 </div>
@@ -578,10 +540,10 @@ const VendorForm: React.FC<VendorFormProps> = ({
                       <Lamp className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
                       <select
                         value={fix.type}
-                        onChange={(e) => handleFixtureChange(idx, 'type', e.target.value)}
+                        onChange={(e) => handleFixtureChange(idx, 'type', e.target.value as FixtureType)}
                         className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent"
                       >
-                        {Object.values(FixtureType).map((type) => (
+                        {VALID_FIXTURES.map((type) => (
                           <option key={type} value={type}>{type}</option>
                         ))}
                       </select>
