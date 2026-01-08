@@ -18,7 +18,7 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const [formData, setFormData] = useState<VendorDetails>({
-    exhibitorType: 'Brand',
+    exhibitorType: '',
     brands: [{ brandName: '', showroomName: '', website: '', instagram: '' }],
     company: '',
     contacts: [{ name: '', email: '', title: '' }],
@@ -333,372 +333,379 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
               </div>
             </div>
 
-            <div className="md:col-span-2">
-              <label className={labelClass}>Company Name <span className="text-red-500">*</span></label>
-              <div className="relative">
-                <Building2 className={iconClass} />
-                <input
-                  name="company"
-                  className={`${inputClass} ${errors.company ? 'border-red-500 ring-2 ring-red-100' : ''}`}
-                  value={formData.company}
-                  onChange={(e) => {
-                    handleChange(e);
-                    if (errors.company) setErrors(prev => ({ ...prev, company: '' }));
-                  }}
-                  placeholder="Acme Corp"
-                />
-              </div>
-              {errors.company && <p className="text-red-500 text-xs mt-1">{errors.company}</p>}
-            </div>
+            {formData.exhibitorType && (
+              <>
+                <div className="md:col-span-2">
+                  <label className={labelClass}>Company Name <span className="text-red-500">*</span></label>
+                  <div className="relative">
+                    <Building2 className={iconClass} />
+                    <input
+                      name="company"
+                      className={`${inputClass} ${errors.company ? 'border-red-500 ring-2 ring-red-100' : ''}`}
+                      value={formData.company}
+                      onChange={(e) => {
+                        handleChange(e);
+                        if (errors.company) setErrors(prev => ({ ...prev, company: '' }));
+                      }}
+                      placeholder="Acme Corp"
+                    />
+                  </div>
+                  {errors.company && <p className="text-red-500 text-xs mt-1">{errors.company}</p>}
+                </div>
 
-            {formData.exhibitorType === 'Brand' && (
-              <div className="col-span-full space-y-6">
-                {formData.brands.map((brand, idx) => (
+                <div className="col-span-full space-y-6">
+                  {formData.brands.map((brand, idx) => (
+                    <div key={idx} className="p-4 border border-gray-100 rounded-xl bg-gray-50/50 space-y-4 relative group">
+                      {formData.brands.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeBrandRow(idx)}
+                          className="absolute top-2 right-2 p-1 text-gray-400 hover:text-red-500 transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                      <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Brand Details {formData.brands.length > 1 ? `#${idx + 1}` : ''}</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className={labelClass}>Brand Name <span className="text-red-500">*</span></label>
+                          <div className="relative">
+                            <FileCheck className={iconClass} />
+                            <input
+                              type="text"
+                              value={brand.brandName}
+                              onChange={(e) => {
+                                handleBrandChange(idx, 'brandName', e.target.value);
+                                if (errors[`brandName_${idx}`]) setErrors(prev => ({ ...prev, [`brandName_${idx}`]: '' }));
+                              }}
+                              className={`${inputClass} ${errors[`brandName_${idx}`] ? 'border-red-500 ring-2 ring-red-100' : ''}`}
+                              placeholder="Brand Identity"
+                            />
+                          </div>
+                          {errors[`brandName_${idx}`] && <p className="text-red-500 text-xs mt-1">{errors[`brandName_${idx}`]}</p>}
+                        </div>
+                        <div>
+                          <label className={labelClass}>Showroom Name</label>
+                          <div className="relative">
+                            <ShoppingCart className={iconClass} />
+                            <input
+                              type="text"
+                              value={brand.showroomName}
+                              onChange={(e) => handleBrandChange(idx, 'showroomName', e.target.value)}
+                              className={inputClass}
+                              placeholder="Showroom 123"
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <label className={labelClass}>Website</label>
+                          <div className="relative">
+                            <Globe className={iconClass} />
+                            <input
+                              type="url"
+                              value={brand.website}
+                              onChange={(e) => handleBrandChange(idx, 'website', e.target.value)}
+                              className={inputClass}
+                              placeholder="https://www.company.com"
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <label className={labelClass}>Instagram</label>
+                          <div className="relative">
+                            <Instagram className={iconClass} />
+                            <input
+                              type="text"
+                              value={brand.instagram}
+                              onChange={(e) => handleBrandChange(idx, 'instagram', e.target.value)}
+                              className={inputClass}
+                              placeholder="@username"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={addBrandRow}
+                    className="w-full py-2 border-2 border-dashed border-gray-200 rounded-lg text-gray-400 text-xs font-medium hover:text-indigo-600 hover:border-indigo-600 transition-all flex items-center justify-center gap-2"
+                  >
+                    <Plus className="w-3 h-3" />
+                    Add Another Brand
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        {formData.exhibitorType && (
+          <>
+
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-6">
+              <h2 className="text-lg font-bold text-gray-900 border-b pb-2">Contact Details</h2>
+              <div className="space-y-6">
+                {formData.contacts.map((contact, idx) => (
                   <div key={idx} className="p-4 border border-gray-100 rounded-xl bg-gray-50/50 space-y-4 relative group">
-                    {formData.brands.length > 1 && (
+                    {formData.contacts.length > 1 && (
                       <button
                         type="button"
-                        onClick={() => removeBrandRow(idx)}
+                        onClick={() => removeContactRow(idx)}
                         className="absolute top-2 right-2 p-1 text-gray-400 hover:text-red-500 transition-colors"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
                     )}
-                    <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Brand Details {formData.brands.length > 1 ? `#${idx + 1}` : ''}</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Contact {formData.contacts.length > 1 ? `#${idx + 1}` : ''}</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
-                        <label className={labelClass}>Brand Name <span className="text-red-500">*</span></label>
+                        <label className={labelClass}>Contact Name <span className="text-red-500">*</span></label>
                         <div className="relative">
-                          <FileCheck className={iconClass} />
+                          <User className={iconClass} />
                           <input
                             type="text"
-                            value={brand.brandName}
+                            value={contact.name}
                             onChange={(e) => {
-                              handleBrandChange(idx, 'brandName', e.target.value);
-                              if (errors[`brandName_${idx}`]) setErrors(prev => ({ ...prev, [`brandName_${idx}`]: '' }));
+                              handleContactChange(idx, 'name', e.target.value);
+                              if (errors[`contactName_${idx}`]) setErrors(prev => ({ ...prev, [`contactName_${idx}`]: '' }));
                             }}
-                            className={`${inputClass} ${errors[`brandName_${idx}`] ? 'border-red-500 ring-2 ring-red-100' : ''}`}
-                            placeholder="Brand Identity"
+                            className={`${inputClass} ${errors[`contactName_${idx}`] ? 'border-red-500 ring-2 ring-red-100' : ''}`}
+                            placeholder="John Doe"
                           />
                         </div>
-                        {errors[`brandName_${idx}`] && <p className="text-red-500 text-xs mt-1">{errors[`brandName_${idx}`]}</p>}
+                        {errors[`contactName_${idx}`] && <p className="text-red-500 text-xs mt-1">{errors[`contactName_${idx}`]}</p>}
                       </div>
                       <div>
-                        <label className={labelClass}>Showroom Name</label>
+                        <label className={labelClass}>Title</label>
                         <div className="relative">
-                          <ShoppingCart className={iconClass} />
+                          <FileText className={iconClass} />
                           <input
                             type="text"
-                            value={brand.showroomName}
-                            onChange={(e) => handleBrandChange(idx, 'showroomName', e.target.value)}
+                            value={contact.title}
+                            onChange={(e) => handleContactChange(idx, 'title', e.target.value)}
                             className={inputClass}
-                            placeholder="Showroom 123"
+                            placeholder="Managing Director"
                           />
                         </div>
                       </div>
-                      <div>
-                        <label className={labelClass}>Website</label>
+                      <div className="col-span-full">
+                        <label className={labelClass}>Email Address <span className="text-red-500">*</span></label>
                         <div className="relative">
-                          <Globe className={iconClass} />
+                          <Mail className={iconClass} />
                           <input
-                            type="url"
-                            value={brand.website}
-                            onChange={(e) => handleBrandChange(idx, 'website', e.target.value)}
-                            className={inputClass}
-                            placeholder="https://www.company.com"
+                            type="email"
+                            value={contact.email}
+                            onChange={(e) => {
+                              handleContactChange(idx, 'email', e.target.value);
+                              if (errors[`contactEmail_${idx}`]) setErrors(prev => ({ ...prev, [`contactEmail_${idx}`]: '' }));
+                            }}
+                            className={`${inputClass} ${errors[`contactEmail_${idx}`] ? 'border-red-500 ring-2 ring-red-100' : ''}`}
+                            placeholder="john@company.com"
                           />
                         </div>
-                      </div>
-                      <div>
-                        <label className={labelClass}>Instagram</label>
-                        <div className="relative">
-                          <Instagram className={iconClass} />
-                          <input
-                            type="text"
-                            value={brand.instagram}
-                            onChange={(e) => handleBrandChange(idx, 'instagram', e.target.value)}
-                            className={inputClass}
-                            placeholder="@username"
-                          />
-                        </div>
+                        {errors[`contactEmail_${idx}`] && <p className="text-red-500 text-xs mt-1">{errors[`contactEmail_${idx}`]}</p>}
                       </div>
                     </div>
                   </div>
                 ))}
+
                 <button
                   type="button"
-                  onClick={addBrandRow}
+                  onClick={addContactRow}
                   className="w-full py-2 border-2 border-dashed border-gray-200 rounded-lg text-gray-400 text-xs font-medium hover:text-indigo-600 hover:border-indigo-600 transition-all flex items-center justify-center gap-2"
                 >
                   <Plus className="w-3 h-3" />
-                  Add Another Brand
+                  Add Another Contact
                 </button>
-              </div>
-            )}
-          </div>
-        </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-6">
-          <h2 className="text-lg font-bold text-gray-900 border-b pb-2">Contact Details</h2>
-          <div className="space-y-6">
-            {formData.contacts.map((contact, idx) => (
-              <div key={idx} className="p-4 border border-gray-100 rounded-xl bg-gray-50/50 space-y-4 relative group">
-                {formData.contacts.length > 1 && (
+                <div className="col-span-full">
+                  <label className={labelClass}>Company Address <span className="text-red-500">*</span></label>
+                  <div className="relative">
+                    <MapPin className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
+                    <textarea
+                      name="address"
+                      rows={2}
+                      className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent outline-none transition-all ${errors.address ? 'border-red-500 ring-2 ring-red-100' : 'border-slate-300'}`}
+                      value={formData.address}
+                      onChange={(e) => {
+                        handleChange(e);
+                        if (errors.address) setErrors(prev => ({ ...prev, address: '' }));
+                      }}
+                      placeholder="Street Address, City, State, ZIP, Country"
+                    />
+                  </div>
+                  {errors.address && <p className="text-red-500 text-xs mt-1">{errors.address}</p>}
+                </div>
+              </div>
+            </div>
+
+            {/* Categories */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
+              <h2 className="text-lg font-bold text-gray-900 border-b pb-2">Categories</h2>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                {CATEGORY_OPTIONS.map(cat => (
+                  <label key={cat} className="flex items-center space-x-2 text-sm p-2 border rounded hover:bg-gray-50 cursor-pointer">
+                    <input type="checkbox" checked={formData.categories.includes(cat)} onChange={() => toggleCategory(cat)} />
+                    <span>{cat}</span>
+                  </label>
+                ))}
+                <div className="col-span-full mt-2">
+                  <label className="flex items-center space-x-2 text-sm">
+                    <input type="checkbox" checked={formData.categories.includes('Other')} onChange={() => toggleCategory('Other')} />
+                    <span>Other:</span>
+                    {formData.categories.includes('Other') && (
+                      <input name="otherCategory" className="flex-1 border-b outline-none focus:border-indigo-500 text-sm" value={formData.otherCategory} onChange={handleChange} />
+                    )}
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            {/* Booth & Fixtures */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-6">
+              <h2 className="text-lg font-bold text-gray-900 border-b pb-2">Booth & Fixture Selection</h2>
+
+              <div className="space-y-4">
+                <div>
+                  <label className={labelClass}>Booth Size</label>
+                  <div className="relative">
+                    <LayoutGrid className={iconClass} />
+                    <select
+                      name="boothSize"
+                      className={inputClass + " appearance-none"}
+                      value={formData.boothSize}
+                      onChange={(e) => {
+                        const size = e.target.value;
+                        const qty = calculateTotalQuota(size, formData.customBoothSize);
+                        let finalDesc = size;
+                        if (size === "Custom Fixture") {
+                          const units = formData.customBoothSize || '7.0+';
+                          const details = formData.customBoothRequirements || 'Custom Dimensions';
+                          finalDesc = `${units} Custom || ${details} || (${qty} Fixtures)`;
+                        }
+
+                        const newFixtures = [...formData.selectedFixtures];
+                        if (newFixtures.length === 1) newFixtures[0].quantity = qty;
+
+                        setFormData({ ...formData, boothSize: size, finalBoothSize: finalDesc, selectedFixtures: newFixtures });
+                      }}
+                    >
+                      {[
+                        "1 Standard || 13' x 8' || (4 Fixtures)",
+                        "1.5 Standard || 20' x 8' || (6 Fixtures)",
+                        "2 Standard || (8 Fixtures)",
+                        "2.5 Standard || (10 Fixtures)",
+                        "3 Standard || (12 Fixtures)",
+                        "Accessory Booth (2 Fixtures)",
+                        "Accessory Booth (3 Fixtures)",
+                        "Custom Fixture"
+                      ].map(size => (
+                        <option key={size} value={size}>{size}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {formData.boothSize === "Custom Fixture" && (
+                    <div className="grid grid-cols-1 gap-4 bg-gray-50 p-4 rounded-lg">
+                      <div>
+                        <label className={labelClass}>Fixture Count</label>
+                        <div className="relative">
+                          <LayoutGrid className={iconClass} />
+                          <input
+                            name="customBoothSize"
+                            className={inputClass}
+                            value={formData.customBoothSize || ''}
+                            onChange={(e) => {
+                              const units = e.target.value;
+                              const qty = calculateTotalQuota("Custom Fixture", units);
+                              const finalDesc = `${units || 'Custom'} Custom || (${qty} Fixtures)`;
+                              const newFixtures = [...formData.selectedFixtures];
+                              if (newFixtures.length === 1) newFixtures[0].quantity = qty;
+                              setFormData({ ...formData, customBoothSize: units, finalBoothSize: finalDesc, selectedFixtures: newFixtures });
+                            }}
+                            placeholder="e.g. 8.5"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="p-4 border rounded-lg space-y-4">
+                  <div className="flex justify-between items-center text-xs font-bold uppercase tracking-wider text-gray-500">
+                    <span>Fixtures ({currentTotalFixtures} / {totalQuota})</span>
+                  </div>
+                  {formData.selectedFixtures.map((fix, idx) => (
+                    <div key={idx} className="flex gap-2 items-center">
+                      <select
+                        className="flex-1 px-3 py-1.5 border rounded text-sm"
+                        value={fix.type}
+                        onChange={(e) => handleFixtureChange(idx, 'type', e.target.value)}
+                      >
+                        {VALID_FIXTURES.map(type => <option key={type} value={type}>{type}</option>)}
+                      </select>
+                      <input
+                        type="number"
+                        className="w-20 px-3 py-1.5 border rounded text-sm"
+                        value={fix.quantity}
+                        onChange={(e) => handleFixtureChange(idx, 'quantity', parseInt(e.target.value) || 0)}
+                      />
+                      {formData.selectedFixtures.length > 1 && (
+                        <button type="button" onClick={() => removeFixtureRow(idx)} className="text-red-500 p-1">×</button>
+                      )}
+                    </div>
+                  ))}
                   <button
                     type="button"
-                    onClick={() => removeContactRow(idx)}
-                    className="absolute top-2 right-2 p-1 text-gray-400 hover:text-red-500 transition-colors"
+                    onClick={addFixtureRow}
+                    className="w-full py-1.5 border-2 border-dashed rounded text-xs text-gray-400 hover:text-indigo-500 hover:border-indigo-500 transition"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    + Add Another Fixture Type
                   </button>
-                )}
-                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Contact {formData.contacts.length > 1 ? `#${idx + 1}` : ''}</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className={labelClass}>Contact Name <span className="text-red-500">*</span></label>
-                    <div className="relative">
-                      <User className={iconClass} />
-                      <input
-                        type="text"
-                        value={contact.name}
-                        onChange={(e) => {
-                          handleContactChange(idx, 'name', e.target.value);
-                          if (errors[`contactName_${idx}`]) setErrors(prev => ({ ...prev, [`contactName_${idx}`]: '' }));
-                        }}
-                        className={`${inputClass} ${errors[`contactName_${idx}`] ? 'border-red-500 ring-2 ring-red-100' : ''}`}
-                        placeholder="John Doe"
-                      />
-                    </div>
-                    {errors[`contactName_${idx}`] && <p className="text-red-500 text-xs mt-1">{errors[`contactName_${idx}`]}</p>}
-                  </div>
-                  <div>
-                    <label className={labelClass}>Title</label>
+                    <label className={labelClass}>Event Date <span className="text-red-500">*</span></label>
                     <div className="relative">
                       <FileText className={iconClass} />
                       <input
-                        type="text"
-                        value={contact.title}
-                        onChange={(e) => handleContactChange(idx, 'title', e.target.value)}
-                        className={inputClass}
-                        placeholder="Managing Director"
-                      />
-                    </div>
-                  </div>
-                  <div className="col-span-full">
-                    <label className={labelClass}>Email Address <span className="text-red-500">*</span></label>
-                    <div className="relative">
-                      <Mail className={iconClass} />
-                      <input
-                        type="email"
-                        value={contact.email}
+                        type="date"
+                        name="eventDate"
+                        className={`${inputClass} ${errors.eventDate ? 'border-red-500 ring-2 ring-red-100' : ''}`}
+                        value={formData.eventDate}
                         onChange={(e) => {
-                          handleContactChange(idx, 'email', e.target.value);
-                          if (errors[`contactEmail_${idx}`]) setErrors(prev => ({ ...prev, [`contactEmail_${idx}`]: '' }));
+                          handleChange(e);
+                          if (errors.eventDate) setErrors(prev => ({ ...prev, eventDate: '' }));
                         }}
-                        className={`${inputClass} ${errors[`contactEmail_${idx}`] ? 'border-red-500 ring-2 ring-red-100' : ''}`}
-                        placeholder="john@company.com"
                       />
                     </div>
-                    {errors[`contactEmail_${idx}`] && <p className="text-red-500 text-xs mt-1">{errors[`contactEmail_${idx}`]}</p>}
+                    {errors.eventDate && <p className="text-red-500 text-xs mt-1">{errors.eventDate}</p>}
                   </div>
-                </div>
-              </div>
-            ))}
-
-            <button
-              type="button"
-              onClick={addContactRow}
-              className="w-full py-2 border-2 border-dashed border-gray-200 rounded-lg text-gray-400 text-xs font-medium hover:text-indigo-600 hover:border-indigo-600 transition-all flex items-center justify-center gap-2"
-            >
-              <Plus className="w-3 h-3" />
-              Add Another Contact
-            </button>
-
-            <div className="col-span-full">
-              <label className={labelClass}>Company Address <span className="text-red-500">*</span></label>
-              <div className="relative">
-                <MapPin className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
-                <textarea
-                  name="address"
-                  rows={2}
-                  className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent outline-none transition-all ${errors.address ? 'border-red-500 ring-2 ring-red-100' : 'border-slate-300'}`}
-                  value={formData.address}
-                  onChange={(e) => {
-                    handleChange(e);
-                    if (errors.address) setErrors(prev => ({ ...prev, address: '' }));
-                  }}
-                  placeholder="Street Address, City, State, ZIP, Country"
-                />
-              </div>
-              {errors.address && <p className="text-red-500 text-xs mt-1">{errors.address}</p>}
-            </div>
-          </div>
-        </div>
-
-        {/* Categories */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
-          <h2 className="text-lg font-bold text-gray-900 border-b pb-2">Categories</h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            {CATEGORY_OPTIONS.map(cat => (
-              <label key={cat} className="flex items-center space-x-2 text-sm p-2 border rounded hover:bg-gray-50 cursor-pointer">
-                <input type="checkbox" checked={formData.categories.includes(cat)} onChange={() => toggleCategory(cat)} />
-                <span>{cat}</span>
-              </label>
-            ))}
-            <div className="col-span-full mt-2">
-              <label className="flex items-center space-x-2 text-sm">
-                <input type="checkbox" checked={formData.categories.includes('Other')} onChange={() => toggleCategory('Other')} />
-                <span>Other:</span>
-                {formData.categories.includes('Other') && (
-                  <input name="otherCategory" className="flex-1 border-b outline-none focus:border-indigo-500 text-sm" value={formData.otherCategory} onChange={handleChange} />
-                )}
-              </label>
-            </div>
-          </div>
-        </div>
-
-        {/* Booth & Fixtures */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-6">
-          <h2 className="text-lg font-bold text-gray-900 border-b pb-2">Booth & Fixture Selection</h2>
-
-          <div className="space-y-4">
-            <div>
-              <label className={labelClass}>Booth Size</label>
-              <div className="relative">
-                <LayoutGrid className={iconClass} />
-                <select
-                  name="boothSize"
-                  className={inputClass + " appearance-none"}
-                  value={formData.boothSize}
-                  onChange={(e) => {
-                    const size = e.target.value;
-                    const qty = calculateTotalQuota(size, formData.customBoothSize);
-                    let finalDesc = size;
-                    if (size === "Custom Fixture") {
-                      const units = formData.customBoothSize || '7.0+';
-                      const details = formData.customBoothRequirements || 'Custom Dimensions';
-                      finalDesc = `${units} Custom || ${details} || (${qty} Fixtures)`;
-                    }
-
-                    const newFixtures = [...formData.selectedFixtures];
-                    if (newFixtures.length === 1) newFixtures[0].quantity = qty;
-
-                    setFormData({ ...formData, boothSize: size, finalBoothSize: finalDesc, selectedFixtures: newFixtures });
-                  }}
-                >
-                  {[
-                    "1 Standard || 13' x 8' || (4 Fixtures)",
-                    "1.5 Standard || 20' x 8' || (6 Fixtures)",
-                    "2 Standard || (8 Fixtures)",
-                    "2.5 Standard || (10 Fixtures)",
-                    "3 Standard || (12 Fixtures)",
-                    "Accessory Booth (2 Fixtures)",
-                    "Accessory Booth (3 Fixtures)",
-                    "Custom Fixture"
-                  ].map(size => (
-                    <option key={size} value={size}>{size}</option>
-                  ))}
-                </select>
-              </div>
-
-              {formData.boothSize === "Custom Fixture" && (
-                <div className="grid grid-cols-1 gap-4 bg-gray-50 p-4 rounded-lg">
                   <div>
-                    <label className={labelClass}>Fixture Count</label>
+                    <label className={labelClass}>Final Confirmation (Editable)</label>
                     <div className="relative">
-                      <LayoutGrid className={iconClass} />
-                      <input
-                        name="customBoothSize"
-                        className={inputClass}
-                        value={formData.customBoothSize || ''}
-                        onChange={(e) => {
-                          const units = e.target.value;
-                          const qty = calculateTotalQuota("Custom Fixture", units);
-                          const finalDesc = `${units || 'Custom'} Custom || (${qty} Fixtures)`;
-                          const newFixtures = [...formData.selectedFixtures];
-                          if (newFixtures.length === 1) newFixtures[0].quantity = qty;
-                          setFormData({ ...formData, customBoothSize: units, finalBoothSize: finalDesc, selectedFixtures: newFixtures });
-                        }}
-                        placeholder="e.g. 8.5"
-                      />
+                      <Check className={iconClass} />
+                      <input name="finalBoothSize" className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg text-xs font-mono bg-slate-50" value={formData.finalBoothSize} onChange={handleChange} />
                     </div>
                   </div>
                 </div>
-              )}
+              </div>
             </div>
 
-            <div className="p-4 border rounded-lg space-y-4">
-              <div className="flex justify-between items-center text-xs font-bold uppercase tracking-wider text-gray-500">
-                <span>Fixtures ({currentTotalFixtures} / {totalQuota})</span>
-              </div>
-              {formData.selectedFixtures.map((fix, idx) => (
-                <div key={idx} className="flex gap-2 items-center">
-                  <select
-                    className="flex-1 px-3 py-1.5 border rounded text-sm"
-                    value={fix.type}
-                    onChange={(e) => handleFixtureChange(idx, 'type', e.target.value)}
-                  >
-                    {VALID_FIXTURES.map(type => <option key={type} value={type}>{type}</option>)}
-                  </select>
-                  <input
-                    type="number"
-                    className="w-20 px-3 py-1.5 border rounded text-sm"
-                    value={fix.quantity}
-                    onChange={(e) => handleFixtureChange(idx, 'quantity', parseInt(e.target.value) || 0)}
-                  />
-                  {formData.selectedFixtures.length > 1 && (
-                    <button type="button" onClick={() => removeFixtureRow(idx)} className="text-red-500 p-1">×</button>
-                  )}
-                </div>
-              ))}
+            <div className="pt-4 sticky bottom-6 z-10">
               <button
-                type="button"
-                onClick={addFixtureRow}
-                className="w-full py-1.5 border-2 border-dashed rounded text-xs text-gray-400 hover:text-indigo-500 hover:border-indigo-500 transition"
+                type="submit"
+                disabled={loading}
+                className={`w-full flex items-center justify-center space-x-2 py-4 rounded-xl text-white font-bold transition shadow-xl ${loading ? 'bg-indigo-400' : 'bg-indigo-600 hover:bg-indigo-700'}`}
               >
-                + Add Another Fixture Type
+                {loading ? <Loader2 className="animate-spin" /> : <Send />}
+                <span>{loading ? 'Processing...' : 'GENERATE & SEND CONTRACT'}</span>
               </button>
             </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className={labelClass}>Event Date <span className="text-red-500">*</span></label>
-                <div className="relative">
-                  <FileText className={iconClass} />
-                  <input
-                    type="date"
-                    name="eventDate"
-                    className={`${inputClass} ${errors.eventDate ? 'border-red-500 ring-2 ring-red-100' : ''}`}
-                    value={formData.eventDate}
-                    onChange={(e) => {
-                      handleChange(e);
-                      if (errors.eventDate) setErrors(prev => ({ ...prev, eventDate: '' }));
-                    }}
-                  />
-                </div>
-                {errors.eventDate && <p className="text-red-500 text-xs mt-1">{errors.eventDate}</p>}
-              </div>
-              <div>
-                <label className={labelClass}>Final Confirmation (Editable)</label>
-                <div className="relative">
-                  <Check className={iconClass} />
-                  <input name="finalBoothSize" className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg text-xs font-mono bg-slate-50" value={formData.finalBoothSize} onChange={handleChange} />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="pt-4 sticky bottom-6 z-10">
-          <button
-            type="submit"
-            disabled={loading}
-            className={`w-full flex items-center justify-center space-x-2 py-4 rounded-xl text-white font-bold transition shadow-xl ${loading ? 'bg-indigo-400' : 'bg-indigo-600 hover:bg-indigo-700'}`}
-          >
-            {loading ? <Loader2 className="animate-spin" /> : <Send />}
-            <span>{loading ? 'Processing...' : 'GENERATE & SEND CONTRACT'}</span>
-          </button>
-        </div>
+          </>
+        )}
       </form>
     </div>
   );

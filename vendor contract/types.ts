@@ -54,7 +54,7 @@ export interface BrandInfo {
 
 export interface VendorFormData {
   // Exhibitor Info
-  exhibitorType: ExhibitorType;
+  exhibitorType: ExhibitorType | '';
   brands: BrandInfo[];
   companyName: string; // Keep companyName as it's often needed for billing/legal
 
@@ -86,7 +86,7 @@ export interface VendorFormData {
 }
 
 export const INITIAL_FORM_DATA: VendorFormData = {
-  exhibitorType: ExhibitorType.BRAND,
+  exhibitorType: '',
   brands: [{ brandName: '', showroomName: '', website: '', instagram: '' }],
   companyName: '',
   contacts: [{ name: '', email: '', title: '' }],
