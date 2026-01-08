@@ -259,7 +259,9 @@ const VendorForm: React.FC<VendorFormProps> = ({
           {data.exhibitorType && (
             <>
               <div className="col-span-full">
-                <label className={labelClass}>Company Name <span className="text-red-500">*</span></label>
+                <label className={labelClass}>
+                  {data.exhibitorType === 'Multi-line showroom' ? 'Showroom Name' : 'Company Name'} <span className="text-red-500">*</span>
+                </label>
                 <div className="relative">
                   <Building2 className={iconClass} />
                   <input
@@ -271,7 +273,7 @@ const VendorForm: React.FC<VendorFormProps> = ({
                       if (errors.companyName) setErrors(prev => ({ ...prev, companyName: '' }));
                     }}
                     className={`${inputClass} ${errors.companyName ? 'border-red-500 ring-1 ring-red-500' : ''}`}
-                    placeholder="Acme Corp"
+                    placeholder={data.exhibitorType === 'Multi-line showroom' ? "Showroom Name" : "Acme Corp"}
                     required
                   />
                 </div>
@@ -291,7 +293,7 @@ const VendorForm: React.FC<VendorFormProps> = ({
                     )}
                     <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Brand Details {data.brands.length > 1 ? `#${idx + 1}` : ''}</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
+                      <div className={data.exhibitorType === 'Multi-line showroom' ? 'col-span-2' : ''}>
                         <label className={labelClass}>Brand Name <span className="text-red-500">*</span></label>
                         <div className="relative">
                           <FileCheck className={iconClass} />
@@ -308,19 +310,22 @@ const VendorForm: React.FC<VendorFormProps> = ({
                         </div>
                         {errors[`brandName_${idx}`] && <p className="text-red-500 text-xs mt-1">{errors[`brandName_${idx}`]}</p>}
                       </div>
-                      <div>
-                        <label className={labelClass}>Showroom Name (if applicable)</label>
-                        <div className="relative">
-                          <ShoppingCart className={iconClass} />
-                          <input
-                            type="text"
-                            value={brand.showroomName}
-                            onChange={(e) => handleBrandChange(idx, 'showroomName', e.target.value)}
-                            className={inputClass}
-                            placeholder="Showroom 123"
-                          />
+
+                      {data.exhibitorType !== 'Multi-line showroom' && (
+                        <div>
+                          <label className={labelClass}>Showroom Name (if applicable)</label>
+                          <div className="relative">
+                            <ShoppingCart className={iconClass} />
+                            <input
+                              type="text"
+                              value={brand.showroomName}
+                              onChange={(e) => handleBrandChange(idx, 'showroomName', e.target.value)}
+                              className={inputClass}
+                              placeholder="Showroom 123"
+                            />
+                          </div>
                         </div>
-                      </div>
+                      )}
                       <div>
                         <label className={labelClass}>Website URL</label>
                         <div className="relative">

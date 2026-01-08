@@ -367,7 +367,9 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
             {formData.exhibitorType && (
               <>
                 <div className="md:col-span-2">
-                  <label className={labelClass}>Company Name <span className="text-red-500">*</span></label>
+                  <label className={labelClass}>
+                    {formData.exhibitorType === 'Multi-line showroom' ? 'Showroom Name' : 'Company Name'} <span className="text-red-500">*</span>
+                  </label>
                   <div className="relative">
                     <Building2 className={iconClass} />
                     <input
@@ -378,7 +380,7 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
                         handleChange(e);
                         if (errors.company) setErrors(prev => ({ ...prev, company: '' }));
                       }}
-                      placeholder="Acme Corp"
+                      placeholder={formData.exhibitorType === 'Multi-line showroom' ? "Showroom Name" : "Acme Corp"}
                     />
                   </div>
                   {errors.company && <p className="text-red-500 text-xs mt-1">{errors.company}</p>}
@@ -398,7 +400,7 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
                       )}
                       <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Brand Details {formData.brands.length > 1 ? `#${idx + 1}` : ''}</h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
+                        <div className={formData.exhibitorType === 'Multi-line showroom' ? 'col-span-2' : ''}>
                           <label className={labelClass}>Brand Name <span className="text-red-500">*</span></label>
                           <div className="relative">
                             <FileCheck className={iconClass} />
@@ -415,19 +417,22 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
                           </div>
                           {errors[`brandName_${idx}`] && <p className="text-red-500 text-xs mt-1">{errors[`brandName_${idx}`]}</p>}
                         </div>
-                        <div>
-                          <label className={labelClass}>Showroom Name</label>
-                          <div className="relative">
-                            <ShoppingCart className={iconClass} />
-                            <input
-                              type="text"
-                              value={brand.showroomName}
-                              onChange={(e) => handleBrandChange(idx, 'showroomName', e.target.value)}
-                              className={inputClass}
-                              placeholder="Showroom 123"
-                            />
+
+                        {formData.exhibitorType !== 'Multi-line showroom' && (
+                          <div>
+                            <label className={labelClass}>Showroom Name</label>
+                            <div className="relative">
+                              <ShoppingCart className={iconClass} />
+                              <input
+                                type="text"
+                                value={brand.showroomName}
+                                onChange={(e) => handleBrandChange(idx, 'showroomName', e.target.value)}
+                                className={inputClass}
+                                placeholder="Showroom 123"
+                              />
+                            </div>
                           </div>
-                        </div>
+                        )}
                         <div>
                           <label className={labelClass}>Website</label>
                           <div className="relative">
