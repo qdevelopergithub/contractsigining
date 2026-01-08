@@ -212,17 +212,47 @@ const VendorForm: React.FC<VendorFormProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="col-span-full">
             <label className={labelClass}>Exhibitor Type <span className="text-red-500">*</span></label>
-            <div className="flex gap-4 p-1 bg-slate-50 rounded-xl border border-slate-200">
-              {Object.values(ExhibitorType).map((type) => (
-                <button
-                  key={type}
-                  onClick={() => handleChange('exhibitorType', type)}
-                  className={`flex-1 py-3 px-4 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2 ${data.exhibitorType === type ? 'bg-white shadow-md text-accent border border-slate-100' : 'text-slate-500 hover:text-slate-700'}`}
-                >
-                  {type === ExhibitorType.BRAND ? <FileCheck className="w-4 h-4" /> : <Layers className="w-4 h-4" />}
-                  {type}
-                </button>
-              ))}
+            <div className="flex gap-6">
+              {!data.exhibitorType ? (
+                Object.values(ExhibitorType).map((type) => (
+                  <button
+                    key={type}
+                    onClick={() => handleChange('exhibitorType', type)}
+                    className="flex-1 py-8 px-6 rounded-xl border-2 border-slate-200 hover:border-accent hover:bg-blue-50/50 transition-all flex flex-col items-center justify-center gap-3 group bg-white shadow-sm hover:shadow-md"
+                  >
+                    <div className="p-3 bg-slate-100 rounded-full group-hover:bg-blue-100 transition-colors">
+                      {type === ExhibitorType.BRAND ? (
+                        <FileCheck className="w-8 h-8 text-slate-500 group-hover:text-accent" />
+                      ) : (
+                        <Layers className="w-8 h-8 text-slate-500 group-hover:text-accent" />
+                      )}
+                    </div>
+                    <span className="font-bold text-lg text-slate-700 group-hover:text-accent">{type}</span>
+                  </button>
+                ))
+              ) : (
+                <div className="flex items-center justify-between w-full p-6 bg-blue-50 border border-blue-100 rounded-xl">
+                  <div className="flex items-center gap-4">
+                    <div className="p-2 bg-white rounded-lg shadow-sm">
+                      {data.exhibitorType === ExhibitorType.BRAND ? (
+                        <FileCheck className="w-6 h-6 text-accent" />
+                      ) : (
+                        <Layers className="w-6 h-6 text-accent" />
+                      )}
+                    </div>
+                    <div>
+                      <span className="text-xs font-bold text-blue-400 uppercase tracking-wider">Selected Type</span>
+                      <p className="text-lg font-bold text-slate-900">{data.exhibitorType}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleChange('exhibitorType', '')}
+                    className="text-sm font-semibold text-slate-500 hover:text-red-500 px-4 py-2 hover:bg-white/50 rounded-lg transition-all"
+                  >
+                    Change Selection
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
