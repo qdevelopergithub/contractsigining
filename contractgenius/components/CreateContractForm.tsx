@@ -138,10 +138,9 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
   };
 
   const addFixtureRow = () => {
-    const remaining = Math.max(0, totalQuota - currentTotalFixtures);
     setFormData(prev => ({
       ...prev,
-      selectedFixtures: [...prev.selectedFixtures, { type: 'Display Counter (Large)', quantity: remaining || 1 }]
+      selectedFixtures: [...prev.selectedFixtures, { type: 'Display Counter (Large)', quantity: 1 }]
     }));
   };
 
@@ -179,6 +178,12 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
         newErrors[`contactEmail_${idx}`] = "Email is required";
       } else if (!emailRegex.test(contact.email)) {
         newErrors[`contactEmail_${idx}`] = "Invalid email format";
+      }
+    });
+
+    formData.selectedFixtures.forEach((fixture, idx) => {
+      if (fixture.quantity <= 0) {
+        newErrors[`fixtureQty_${idx}`] = "Quantity must be at least 1";
       }
     });
 
@@ -240,7 +245,7 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
       };
 
       // Create secure Base64 link
-      const base64Data = btoa(JSON.stringify(payload));
+      const base64Data = btoa(encodeURIComponent(JSON.stringify(payload)));
       const magicLink = `${window.location.origin}${window.location.pathname}?data=${encodeURIComponent(base64Data)}`;
 
       // 3. Save to Local Storage
@@ -622,7 +627,7 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
                         }
 
                         const newFixtures = [...formData.selectedFixtures];
-                        if (newFixtures.length === 1) newFixtures[0].quantity = qty;
+                        if (newFixtures.length === 1) newFixtures[0].quantity = 1;
 
                         setFormData({ ...formData, boothSize: size, finalBoothSize: finalDesc, selectedFixtures: newFixtures });
                       }}
@@ -651,13 +656,14 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
                           <input
                             name="customBoothSize"
                             className={inputClass}
+                            maxLength={4}
                             value={formData.customBoothSize || ''}
                             onChange={(e) => {
                               const units = e.target.value;
                               const qty = calculateTotalQuota("Custom Fixture", units);
                               const finalDesc = `${units || 'Custom'} Custom || (${qty} Fixtures)`;
                               const newFixtures = [...formData.selectedFixtures];
-                              if (newFixtures.length === 1) newFixtures[0].quantity = qty;
+                              if (newFixtures.length === 1) newFixtures[0].quantity = 1;
                               setFormData({ ...formData, customBoothSize: units, finalBoothSize: finalDesc, selectedFixtures: newFixtures });
                             }}
                             placeholder="e.g. 8.5"
@@ -685,8 +691,15 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
                         type="number"
                         className="w-20 px-3 py-1.5 border rounded text-sm"
                         value={fix.quantity}
+                        max={999}
+                        onInput={(e) => {
+                          if (e.currentTarget.value.length > 3) {
+                            e.currentTarget.value = e.currentTarget.value.slice(0, 3);
+                          }
+                        }}
                         onChange={(e) => handleFixtureChange(idx, 'quantity', parseInt(e.target.value) || 0)}
                       />
+                      {errors[`fixtureQty_${idx}`] && <p className="text-red-500 text-xs">{errors[`fixtureQty_${idx}`]}</p>}
                       {formData.selectedFixtures.length > 1 && (
                         <button type="button" onClick={() => removeFixtureRow(idx)} className="text-red-500 p-1">×</button>
                       )}

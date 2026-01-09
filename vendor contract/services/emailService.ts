@@ -23,7 +23,7 @@ export const sendVendorData = async (formData: VendorFormData): Promise<boolean>
   // 1. Construct the Signing Link
   // ContractGenius App expects ?data=... in the query string (see contractgenius/App.tsx)
   const jsonString = JSON.stringify(formData);
-  const base64Data = btoa(jsonString);
+  const base64Data = btoa(encodeURIComponent(jsonString));
 
   // Construct the full link to the OTHER app
   const submissionLink = `${APP_PUBLIC_URL}/?data=${base64Data}`;

@@ -69,6 +69,12 @@ const VendorForm: React.FC<VendorFormProps> = ({
       }
     });
 
+    data.selectedFixtures.forEach((fixture, idx) => {
+      if (fixture.quantity <= 0) {
+        newErrors[`fixtureQty_${idx}`] = "Quantity must be at least 1";
+      }
+    });
+
     if (!data.address?.trim()) newErrors.address = "Address is required";
 
     setErrors(newErrors);
@@ -122,7 +128,7 @@ const VendorForm: React.FC<VendorFormProps> = ({
 
       // If switching booth size, we might need to adjust the first fixture quantity to match quota if it's the only one
       if (newData.selectedFixtures.length === 1) {
-        newData.selectedFixtures[0].quantity = qty;
+        newData.selectedFixtures[0].quantity = 1;
       }
     }
 
@@ -175,9 +181,8 @@ const VendorForm: React.FC<VendorFormProps> = ({
   };
 
   const addFixtureRow = () => {
-    // Calculate remaining quota for the new row
-    const remaining = Math.max(0, totalQuota - currentTotalFixtures);
-    const newFixtures = [...data.selectedFixtures, { type: FixtureType.DISPLAY_COUNTER_L, quantity: remaining || 1 }];
+    // Default quantity to 1 for new row
+    const newFixtures = [...data.selectedFixtures, { type: FixtureType.DISPLAY_COUNTER_L, quantity: 1 }];
     onChange({ ...data, selectedFixtures: newFixtures });
   };
 
@@ -546,6 +551,7 @@ const VendorForm: React.FC<VendorFormProps> = ({
                           value={data.customBoothSize || ''}
                           onChange={(e) => handleChange('customBoothSize', e.target.value)}
                           className={inputClass}
+                          maxLength={4}
                           placeholder="e.g. 8.5"
                         />
                       </div>
@@ -593,14 +599,22 @@ const VendorForm: React.FC<VendorFormProps> = ({
                         <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Quantity</label>
                         <div className="relative">
                           <ShoppingCart className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
+
                           <input
                             type="number"
                             min="1"
                             value={fix.quantity}
                             onChange={(e) => handleFixtureChange(idx, 'quantity', parseInt(e.target.value) || 0)}
-                            className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent"
+                            max={999}
+                            onInput={(e) => {
+                              if (e.currentTarget.value.length > 3) {
+                                e.currentTarget.value = e.currentTarget.value.slice(0, 3);
+                              }
+                            }}
+                            className={`w-full pl-10 pr-4 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent ${errors[`fixtureQty_${idx}`] ? 'border-red-500 ring-1 ring-red-500' : 'border-slate-200'}`}
                           />
                         </div>
+                        {errors[`fixtureQty_${idx}`] && <p className="text-red-500 text-[10px] mt-1 ml-1">{errors[`fixtureQty_${idx}`]}</p>}
                       </div>
                       <div className="md:col-span-2 flex gap-2">
                         {data.selectedFixtures.length > 1 && (

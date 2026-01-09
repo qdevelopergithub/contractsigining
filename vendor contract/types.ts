@@ -18,6 +18,7 @@ export interface ContactInfo {
   name: string;
   email: string;
   title?: string;
+  phone?: string;
 }
 
 export enum FixtureType {
@@ -38,7 +39,7 @@ export enum PaymentMode {
   CASH = 'Cash'
 }
 
-export type AppStatus = 'IDLE' | 'GENERATING' | 'SENDING' | 'SENT' | 'SIGNING' | 'SIGNED';
+export type AppStatus = 'IDLE' | 'GENERATING' | 'SENDING' | 'SENT' | 'SIGNING' | 'SIGNED' | 'EXPIRED';
 
 export enum ExhibitorType {
   BRAND = 'Brand',
@@ -89,7 +90,7 @@ export const INITIAL_FORM_DATA: VendorFormData = {
   exhibitorType: '',
   brands: [{ brandName: '', showroomName: '', website: '', instagram: '' }],
   companyName: '',
-  contacts: [{ name: '', email: '', title: '' }],
+  contacts: [{ name: '', email: '', title: '', phone: '' }],
   email: '',
   address: '',
   categories: [],

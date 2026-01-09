@@ -10,41 +10,63 @@ export const generateVendorContract = async (data: VendorFormData): Promise<stri
   // Use a capable model on Groq
   const modelId = "llama-3.3-70b-versatile";
 
-  const brandsList = data.brands.map(b => `- ${b.brandName}${b.showroomName ? ` (${b.showroomName})` : ''}${b.website ? `, Website: ${b.website}` : ''}${b.instagram ? `, IG: ${b.instagram}` : ''}`).join('\n') || '- N/A';
-  const contactsList = data.contacts.map(c => `- ${c.name}${c.title ? ` (${c.title})` : ''}, Email: ${c.email}`).join('\n') || `- ${data.email}`;
-  const fixturesList = data.selectedFixtures.map(f => `- ${f.type} (Qty: ${f.quantity})`).join('\n');
+  // Filter and format Brands based on Exhibitor Type
+  const brandsList = data.brands
+    .filter(b => b.brandName && b.brandName.trim() !== '')
+    .map(b => {
+      let info = `- Brand: ${b.brandName}`;
+      if (data.exhibitorType === 'Multi-line showroom' && b.showroomName) {
+        info += `, Showroom: ${b.showroomName}`;
+      }
+      if (b.website) info += `, Website: ${b.website}`;
+      if (b.instagram) info += `, IG: ${b.instagram}`;
+      return info;
+    })
+    .join('\n');
+
+  // Filter Contacts - only valid ones
+  const validContacts = data.contacts.filter(c => c.name && c.name.trim() !== '' && c.name !== 'N/A');
+  // Create a formatted list of ALL valid contacts for the contract body
+  const validContactsList = validContacts.map(c =>
+    `- Name: ${c.name}${c.title ? ` (${c.title})` : ''}\n  Email: ${c.email}${c.phone ? `\n  Phone: ${c.phone}` : ''}`
+  ).join('\n\n');
+
+  // Still identify primary for the "Parties" preamble
+  const primaryContact = validContacts[0] || { name: data.email, title: '', email: data.email };
+
+  const fixturesList = data.selectedFixtures?.map(f => `- ${f.type} (Qty: ${f.quantity})`).join('\n');
   const categoriesList = data.categories.join(', ') + (data.categories.includes('Other') && data.otherCategory ? ` (${data.otherCategory})` : '');
 
   const prompt = `
-    Generate a professional, legally structured service contract for a trade show or exhibition vendor.
-    
-    Exhibitor Information:
+    Generate a formal, legally binding "Exhibition Service Agreement" between **[Organizer Name]** and **${data.companyName}**.
+
+    **Contract Data:**
+    - Date: ${new Date().toLocaleDateString()}
     - Exhibitor Type: ${data.exhibitorType}
     - Company Name: ${data.companyName}
-    - Brands:
-${brandsList}
-    
-    Contact Details:
-${contactsList}
     - Company Address: ${data.address}
     
-    Categories Being Shown:
-    - ${categoriesList}
+    **Brands Displayed:**
+${brandsList}
 
-    Booth & Fixture Selection:
-    - Booth Size/Type: ${data.finalBoothSize || data.boothSize}
-    - Selected Fixtures:
+    **Authorized Contacts:**
+${validContactsList}
+    
+    **Scope of Services / Booth Details:**
+    - Booth Package: ${data.finalBoothSize || data.boothSize}
+    - Fixtures Included:
 ${fixturesList}
-    - Payment Method: ${data.paymentMode}
+    - Categories: ${categoriesList}
+    - Payment Method: ${data.paymentMode || 'Not Specified'}
 
-    Requirements:
-    1. Title: "Exhibition Service Agreement".
-    2. Date: Use today's date (${new Date().toLocaleDateString()}).
-    3. **Important:** Ensure the **Company Address** and **Company Name** are explicitly listed in the Agreement Parties section.
-    4. Include sections for: Agreement Parties, Booth Allocation & Fixtures, Fees & Payment, Liability & Insurance, and Signatures.
-    5. The tone should be formal, professional, and binding.
-    6. Format the output in clean Markdown. Use bolding for keys and sections.
-    7. Explicitly state the total estimated cost (make up a realistic price based on the booth type and fixtures).
+    **Instructions for Output:**
+    1. **Parties Section**: Start with a formal declaration: "This Agreement is made on [Date] between [Organizer Name] ('Organizer') and ${data.companyName}, located at ${data.address} ('Vendor')."
+    2. **Exhibitor Info Section**: Create a distinct section titled "Exhibitor Information". List the **Exhibitor Type**, **Company Name**, and **Brands/Showroom** details here.
+    3. **Contact Details Section**: Create a distinct section titled "Contact Details". List **ALL** contacts provided in the "Authorized Contacts" data above. Do NOT include any "N/A" or empty placeholder fields. If multiple contacts are listed above, list all of them.
+    4. **Scope Section**: Clearly list the Booth Package and Fixtures.
+    5. **Standard Clauses**: Include standard sections for Payment, Cancellation Policy, Liability, and Insurance.
+    6. **Signature Block**: Include space for signatures for clear identification.
+    7. **Format**: Use clean Markdown.
   `;
 
   try {

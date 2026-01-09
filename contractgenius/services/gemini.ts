@@ -16,46 +16,62 @@ const getClient = () => {
 export const generateContractDraft = async (details: VendorDetails): Promise<string> => {
   const client = getClient();
 
-  const brandsList = details.brands.map(b => `- ${b.brandName}${b.showroomName ? ` (${b.showroomName})` : ''}${b.website ? `, Website: ${b.website}` : ''}${b.instagram ? `, IG: ${b.instagram}` : ''}`).join('\n') || '- N/A';
-  const contactsList = details.contacts.map(c => `- ${c.name}${c.title ? ` (${c.title})` : ''}, Email: ${c.email}`).join('\n') || `- ${details.email}`;
+  // Filter and format Brands based on Exhibitor Type
+  const brandsList = details.brands
+    .filter(b => b.brandName && b.brandName.trim() !== '')
+    .map(b => {
+      let info = `- Brand: ${b.brandName}`;
+      if (details.exhibitorType === 'Multi-line showroom' && b.showroomName) {
+        info += `, Showroom: ${b.showroomName}`;
+      }
+      if (b.website) info += `, Website: ${b.website}`;
+      if (b.instagram) info += `, IG: ${b.instagram}`;
+      return info;
+    })
+    .join('\n');
+
+  // Filter Contacts - only valid ones
+  const validContacts = details.contacts.filter(c => c.name && c.name.trim() !== '' && c.name !== 'N/A');
+  // Create a formatted list of ALL valid contacts
+  const validContactsList = validContacts.map(c =>
+    `- Name: ${c.name}${c.title ? ` (${c.title})` : ''}\n  Email: ${c.email}${c.phone ? `\n  Phone: ${c.phone}` : ''}`
+  ).join('\n\n');
+
+  const primaryContact = validContacts[0] || { name: details.email, title: '', email: details.email };
+
+  // Format Fixtures
   const fixturesList = details.selectedFixtures?.map(f => `- ${f.type} (Qty: ${f.quantity})`).join('\n') || `- ${details.fixture} (Qty: ${details.fixtureQuantity})`;
-  const categoriesList = details.categories?.join(', ') || 'N/A';
 
   const prompt = `
-    Generate a professional, legally structured service contract for a trade show or exhibition vendor.
-    
-    Exhibitor Info:
+    Generate a formal, legally binding "Exhibition Service Agreement" between **[Organizer Name]** and **${details.company}**.
+
+    **Contract Data:**
+    - Date: ${new Date().toLocaleDateString()}
     - Exhibitor Type: ${details.exhibitorType}
     - Company Name: ${details.company}
-    - Brands/Showroom Details:
-${brandsList}
-    
-    Contact Information (For "Parties" section):
-${contactsList}
     - Company Address: ${details.address}
 
-    Categories:
-    - ${categoriesList}
+    **Brands Displayed:**
+${brandsList}
 
-    Booth & Fixtures:
-    - Booth Size/Type: ${details.finalBoothSize || details.boothSize}
-    - Selected Fixtures:
+    **Authorized Contacts:**
+${validContactsList}
+    
+    **Scope of Services / Booth Details:**
+    - Booth Package: ${details.finalBoothSize || details.boothSize}
+    - Fixtures Included:
 ${fixturesList}
-    - Special Requirements: ${details.specialRequirements}
+    - Categories: ${details.categories?.join(', ') || 'General'}
+    - Special Requirements: ${details.specialRequirements || 'None'}
 
-    Requirements:
-    1. Title: "Exhibition Service Agreement".
-    2. Date: Use today's date (${new Date().toLocaleDateString()}).
-    3. **Parties Section:** 
-       - Explicitly state the Agreement is between [Organizer Name] and **${details.company}**. 
-       - Include the **Company Address** and the **Primary Contact Name** as the authorized representative in this section.
-    4. **Contact Details:** Do NOT create a separate "Contact Details" section in the contract body. The contact info in the Parties section is sufficient.
-    5. **Exhibitor Specifics:** Only include Brand/Showroom details that are relevant to the selected Exhibitor Type (${details.exhibitorType}).
-    6. Include sections for: Agreement Parties, Booth Allocation & Fixtures, Fees & Payment, Liability & Insurance, and Signatures.
-    7. The tone should be formal and binding.
-    8. Format in Markdown.
-    Do not include any conversational filler at the beginning or end.
-    Use placeholders like [Organizer Name] for the event organizer details.
+    **Instructions for Output:**
+    1. **Parties Section**: Start with a formal declaration: "This Agreement is made on [Date] between [Organizer Name] ('Organizer') and ${details.company}, located at ${details.address} ('Vendor')."
+    2. **Exhibitor Info Section**: Create a distinct section titled "Exhibitor Information". List the **Exhibitor Type**, **Company Name**, and **Brands/Showroom** details here.
+    3. **Contact Details Section**: Create a distinct section titled "Contact Details". List **ALL** contacts provided in the "Authorized Contacts" data above. Do NOT include any "N/A" or empty placeholder fields.
+    4. **Scope Section**: Clearly list the Booth Package and Fixtures. List the allocated Brands under "Permitted Merchandise" or "Brands On Display".
+    5. **Standard Clauses**: Include standard sections for Payment (100% due on invoice), Cancellation Policy, Liability, and Insurance.
+    6. **Signature Block**: Include space for signatures for clear identification.
+    7. **Format**: Use clean Markdown.
   `;
 
   try {
@@ -71,7 +87,7 @@ ${fixturesList}
 
     return completion.choices[0]?.message?.content || "Error: Could not generate contract text.";
   } catch (error) {
-    console.error("Gemini API Error:", error);
+    console.error("GROQ API Error:", error);
     return "Error: Failed to connect to AI service. Please check your API key.";
   }
 };

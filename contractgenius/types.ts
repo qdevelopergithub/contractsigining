@@ -7,6 +7,7 @@ export interface ContactInfo {
   name: string;
   email: string;
   title?: string;
+  phone?: string;
 }
 
 export interface BrandInfo {

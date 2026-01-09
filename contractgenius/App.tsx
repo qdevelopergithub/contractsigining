@@ -41,7 +41,7 @@ const App: React.FC = () => {
     if (dataParam) {
       try {
         const cleanBase64 = decodeURIComponent(dataParam);
-        const jsonString = atob(cleanBase64);
+        const jsonString = decodeURIComponent(atob(cleanBase64));
         const data = JSON.parse(jsonString);
         const importedId = data.id || 'import_' + Math.random().toString(36).substr(2, 9);
         processContractData(data, importedId);
@@ -83,18 +83,20 @@ const App: React.FC = () => {
 
     const vendorDetails: VendorDetails = {
       // Exhibitor Info
+      exhibitorType: data.exhibitorType || '',
+      brands: Array.isArray(data.brands) ? data.brands : ((data.brandName || data.website || data.instagram) ? [{
+        brandName: data.brandName || 'Brand',
+        showroomName: data.showroomName,
+        website: data.website,
+        instagram: data.instagram
+      }] : []),
       company: data.companyName || data.company || 'Vendor Co',
-      brandName: data.brandName || '',
-      showroomName: data.showroomName || '',
-      website: data.website || '',
-      instagram: data.instagram || '',
 
-      // Primary Contact
-      name: data.fullName || data.name || data.contactName || 'Valued Vendor',
-      title: data.title || '',
+      // Contacts
+      contacts: Array.isArray(data.contacts) ? data.contacts : [],
+
+      // Primary Contact (Legacy fields for single contact access if needed)
       email: data.email || 'vendor@example.com',
-      phone: data.phone || '',
-      countryCode: data.countryCode || data.countryCodePrimary || '+1',
       address: data.address || '',
 
       // Categories
@@ -116,12 +118,6 @@ const App: React.FC = () => {
 
       eventDate: data.eventDate || new Date().toISOString().split('T')[0],
       specialRequirements: data.specialRequirements || 'None',
-      additionalContact: data.additionalContact || {
-        name: data.altName || '',
-        email: data.altEmail || '',
-        phone: data.altPhone || '',
-        countryCode: data.altCountryCode || '+1'
-      }
     };
 
     const existingContract = getContractById(id);
@@ -142,19 +138,17 @@ This agreement is between **Event Organizer** and **${vendorDetails.company}** (
 
 **Exhibitor Info:**
 * **Company:** ${vendorDetails.company}
-* **Brand:** ${vendorDetails.brandName}
+* **Brand:** ${vendorDetails.brands.map(b => b.brandName).join(', ')}
 * **Address:** ${vendorDetails.address}
 
-**Primary Contact:**
-* **Name:** ${vendorDetails.name}
-* **Title:** ${vendorDetails.title}
-* **Email:** ${vendorDetails.email}
-* **Phone:** ${vendorDetails.countryCode} ${vendorDetails.phone}
+**Contact:**
+* **Name:** ${vendorDetails.contacts[0]?.name || 'N/A'}
+* **Title:** ${vendorDetails.contacts[0]?.title || ''}
+* **Email:** ${vendorDetails.contacts[0]?.email || 'N/A'}
+* **Phone:** ${vendorDetails.contacts[0]?.phone || 'N/A'}
 
-**Additional Contact (For Reference):**
-* **Name:** ${vendorDetails.additionalContact?.name || 'N/A'}
-* **Email:** ${vendorDetails.additionalContact?.email || 'N/A'}
-* **Phone:** ${vendorDetails.additionalContact?.phone ? (vendorDetails.additionalContact.countryCode + ' ' + vendorDetails.additionalContact.phone) : 'N/A'}
+**Additional Contacts:**
+${vendorDetails.contacts.slice(1).map(c => `* **Name:** ${c.name} (${c.email})`).join('\n') || 'None'}
 
 ## 2. BOOTH ALLOCATION & FIXTURES
 The Vendor is allocated the following:

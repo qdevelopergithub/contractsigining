@@ -20,14 +20,47 @@ const App: React.FC = () => {
       const encodedData = hash.replace('#data=', '');
       if (encodedData) {
         try {
-          const decodedJson = atob(encodedData);
-          const parsedData = JSON.parse(decodedJson) as VendorFormData;
+          const decodedJson = decodeURIComponent(atob(encodedData));
+          const parsedData = JSON.parse(decodedJson) as VendorFormData & { id?: string };
+
           setFormData(parsedData);
-          setAppStatus('GENERATING');
-          generateVendorContract(parsedData).then(text => {
-            setContractText(text);
-            setAppStatus('SIGNING');
-          });
+
+          // Check if expired
+          if (parsedData.id) {
+            const rawBackendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+            const backendUrl = rawBackendUrl.startsWith('http') ? rawBackendUrl : `https://${rawBackendUrl}`;
+
+            fetch(`${backendUrl}/api/contracts/${parsedData.id}`)
+              .then(res => res.json())
+              .then(data => {
+                if (data.status === 'signed') {
+                  setAppStatus('EXPIRED');
+                  setError("This secure signing link has expired because the contract is already signed.");
+                } else {
+                  // Only generate if not expired
+                  setAppStatus('GENERATING');
+                  generateVendorContract(parsedData).then(text => {
+                    setContractText(text);
+                    setAppStatus('SIGNING');
+                  });
+                }
+              })
+              .catch(() => {
+                // If 404 or error, assume valid new link
+                setAppStatus('GENERATING');
+                generateVendorContract(parsedData).then(text => {
+                  setContractText(text);
+                  setAppStatus('SIGNING');
+                });
+              });
+          } else {
+            // Legacy links without ID
+            setAppStatus('GENERATING');
+            generateVendorContract(parsedData).then(text => {
+              setContractText(text);
+              setAppStatus('SIGNING');
+            });
+          }
         } catch (e) {
           console.error("Invalid data", e);
         }
@@ -133,6 +166,30 @@ const App: React.FC = () => {
     </div>
   );
 
+  const renderExpiredScreen = () => (
+    <div className="bg-white p-12 rounded-xl shadow-lg border border-slate-100 flex flex-col items-center justify-center text-center animate-in fade-in zoom-in duration-300 min-h-[400px]">
+      <div className="bg-red-50 p-6 rounded-full mb-6">
+        <FileCheck className="w-20 h-20 text-red-500" />
+      </div>
+
+      <h2 className="text-3xl font-bold text-slate-900 mb-4">Link Expired</h2>
+
+      <p className="text-slate-600 text-lg max-w-lg mx-auto">
+        This secure signing link is no longer valid because the contract has already been signed or the session has expired.
+      </p>
+      <p className="text-slate-500 mt-2">
+        If you need to make changes or sign a new agreement, please contact the organizer.
+      </p>
+
+      <button
+        onClick={handleReset}
+        className="mt-8 px-6 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors font-medium text-sm"
+      >
+        Return to Home
+      </button>
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-slate-50 font-sans">
       <header className="bg-primary text-white shadow-lg sticky top-0 z-50">
@@ -154,34 +211,35 @@ const App: React.FC = () => {
       </header>
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
-        {appStatus === 'SENT' ? renderSentScreen() : (
-          appStatus === 'IDLE' || (appStatus === 'GENERATING' && !contractText) ? (
-            <div className="max-w-3xl mx-auto">
-              <VendorForm
-                data={formData}
-                onChange={setFormData}
-                onSubmit={handleSubmit}
-                isProcessing={appStatus === 'GENERATING'}
-                processingText={getProcessingText()}
+        {appStatus === 'EXPIRED' ? renderExpiredScreen() :
+          appStatus === 'SENT' ? renderSentScreen() : (
+            appStatus === 'IDLE' || (appStatus === 'GENERATING' && !contractText) ? (
+              <div className="max-w-3xl mx-auto">
+                <VendorForm
+                  data={formData}
+                  onChange={setFormData}
+                  onSubmit={handleSubmit}
+                  isProcessing={appStatus === 'GENERATING'}
+                  processingText={getProcessingText()}
+                />
+                {error && (
+                  <div className="mt-4 p-4 bg-red-50 text-red-700 border border-red-200 rounded-lg text-sm">
+                    <strong>Error:</strong> {error}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <ContractPreview
+                contractText={contractText}
+                status={appStatus}
+                userEmail={formData.email}
+                emailDeliveryStatus={emailDeliveryStatus}
+                onSignStart={handleSignStart}
+                onSignComplete={handleSignComplete}
+                onReset={handleReset}
               />
-              {error && (
-                <div className="mt-4 p-4 bg-red-50 text-red-700 border border-red-200 rounded-lg text-sm">
-                  <strong>Error:</strong> {error}
-                </div>
-              )}
-            </div>
-          ) : (
-            <ContractPreview
-              contractText={contractText}
-              status={appStatus}
-              userEmail={formData.email}
-              emailDeliveryStatus={emailDeliveryStatus}
-              onSignStart={handleSignStart}
-              onSignComplete={handleSignComplete}
-              onReset={handleReset}
-            />
-          )
-        )}
+            )
+          )}
       </main>
     </div>
   );
