@@ -24,33 +24,48 @@ export const VendorContractView: React.FC<Props> = ({ contractId, navigate }) =>
     useEffect(() => {
         setLoading(true);
         const timer = setTimeout(async () => {
+            console.log(`[VendorContractView] Loading contract: ${contractId}`);
+
             // A. Load from Local (Sync)
             const localData = getContractById(contractId);
             let currentContract = localData;
+            console.log(`[VendorContractView] Local contract status:`, localData?.status || 'not found');
 
             // B. Sync from Server (Async)
             try {
                 const rawBackendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
                 const backendUrl = rawBackendUrl.startsWith('http') ? rawBackendUrl : `https://${rawBackendUrl}`;
 
+                console.log(`[VendorContractView] Checking server status at: ${backendUrl}/api/contracts/${contractId}`);
                 const res = await fetch(`${backendUrl}/api/contracts/${contractId}`);
+
                 if (res.ok) {
                     const serverData = await res.json();
+                    console.log(`[VendorContractView] Server response:`, { status: serverData?.status, id: serverData?.id });
+
                     if (serverData && serverData.status === 'signed') {
+                        console.log(`[VendorContractView] ✅ Contract is SIGNED on server - Link is EXPIRED`);
                         // Merge server status if signed
                         if (currentContract) {
                             currentContract = { ...currentContract, status: 'signed', signedAt: serverData.signedAt, signatureBase64: serverData.signatureBase64 };
                             // Update local storage too to persist
                             // (Considering we just have signContract helper, we might need to manually update or just rely on state for now)
                         }
+                    } else {
+                        console.log(`[VendorContractView] ⏳ Contract is NOT signed - Link is ACTIVE`);
                     }
+                } else {
+                    console.log(`[VendorContractView] ⚠️ Server returned status ${res.status}`);
                 }
             } catch (err) {
-                console.warn("Could not sync with server:", err);
+                console.warn("[VendorContractView] ❌ Could not sync with server:", err);
             }
 
             if (currentContract) {
+                console.log(`[VendorContractView] Final contract status:`, currentContract.status);
                 setContract(currentContract);
+            } else {
+                console.log(`[VendorContractView] ❌ No contract data available`);
             }
             setLoading(false);
         }, 500);

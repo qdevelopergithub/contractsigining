@@ -42,7 +42,32 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 
 // In-memory storage (Replace with Database for production)
-const contractsDb = new Map();
+const fs = require('fs');
+const path = require('path');
+
+// Persistent Storage Setup
+const DB_FILE = path.join(__dirname, 'contracts.json');
+let contractsDb = new Map();
+
+// Load existing data
+if (fs.existsSync(DB_FILE)) {
+  try {
+    const data = fs.readFileSync(DB_FILE, 'utf8');
+    contractsDb = new Map(JSON.parse(data));
+    console.log(`Loaded ${contractsDb.size} contracts from storage.`);
+  } catch (e) {
+    console.error("Failed to load contracts DB:", e);
+  }
+}
+
+const saveContracts = () => {
+  try {
+    fs.writeFileSync(DB_FILE, JSON.stringify(Array.from(contractsDb.entries()), null, 2));
+  } catch (e) {
+    console.error("Failed to save contracts DB:", e);
+  }
+};
+
 
 // Initialize AI
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
@@ -115,6 +140,7 @@ ${fixturesList}
       createdAt: new Date()
     };
     contractsDb.set(contractId, contractData);
+    saveContracts();
 
     // 3. (Optional) Production URL for UI response
     const frontendBaseUrl = process.env.FRONTEND_URL || "http://localhost:3004";
@@ -130,10 +156,17 @@ ${fixturesList}
 
 // GET /api/contracts/:id
 app.get('/api/contracts/:id', (req, res) => {
-  const contract = contractsDb.get(req.params.id);
+  const contractId = req.params.id;
+  const contract = contractsDb.get(contractId);
+
+  console.log(`[Server] GET /api/contracts/${contractId}`);
+
   if (!contract) {
+    console.log(`[Server] ❌ Contract ${contractId} not found in database`);
     return res.status(404).json({ success: false, message: "Contract not found" });
   }
+
+  console.log(`[Server] ✅ Contract ${contractId} found - Status: ${contract.status}`);
   res.json(contract);
 });
 
@@ -260,8 +293,11 @@ app.post('/api/contracts/sign', async (req, res) => {
     }
 
     // Update Status
+    console.log(`[Server] 📝 Marking contract ${contractId} as SIGNED`);
     contract.status = 'signed';
     contractsDb.set(contractId, contract);
+    saveContracts();
+    console.log(`[Server] ✅ Contract ${contractId} saved to database - Link is now EXPIRED`);
 
     res.json({ success: true, message: "Contract signed and finalized" });
 
