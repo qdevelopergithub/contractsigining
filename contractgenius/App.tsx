@@ -145,7 +145,7 @@ This agreement is between **Event Organizer** and **${vendorDetails.company}** (
 * **Name:** ${vendorDetails.contacts[0]?.name || 'N/A'}
 * **Title:** ${vendorDetails.contacts[0]?.title || ''}
 * **Email:** ${vendorDetails.contacts[0]?.email || 'N/A'}
-* **Phone:** ${vendorDetails.contacts[0]?.phone || 'N/A'}
+
 
 
 

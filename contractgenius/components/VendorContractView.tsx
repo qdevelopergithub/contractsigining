@@ -20,13 +20,37 @@ export const VendorContractView: React.FC<Props> = ({ contractId, navigate }) =>
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [isDrawing, setIsDrawing] = useState(false);
 
-    // 1. Load Contract Data
+    // 1. Load Contract Data & SYNC WITH SERVER
     useEffect(() => {
         setLoading(true);
-        const timer = setTimeout(() => {
-            const data = getContractById(contractId);
-            if (data) {
-                setContract(data);
+        const timer = setTimeout(async () => {
+            // A. Load from Local (Sync)
+            const localData = getContractById(contractId);
+            let currentContract = localData;
+
+            // B. Sync from Server (Async)
+            try {
+                const rawBackendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+                const backendUrl = rawBackendUrl.startsWith('http') ? rawBackendUrl : `https://${rawBackendUrl}`;
+
+                const res = await fetch(`${backendUrl}/api/contracts/${contractId}`);
+                if (res.ok) {
+                    const serverData = await res.json();
+                    if (serverData && serverData.status === 'signed') {
+                        // Merge server status if signed
+                        if (currentContract) {
+                            currentContract = { ...currentContract, status: 'signed', signedAt: serverData.signedAt, signatureBase64: serverData.signatureBase64 };
+                            // Update local storage too to persist
+                            // (Considering we just have signContract helper, we might need to manually update or just rely on state for now)
+                        }
+                    }
+                }
+            } catch (err) {
+                console.warn("Could not sync with server:", err);
+            }
+
+            if (currentContract) {
+                setContract(currentContract);
             }
             setLoading(false);
         }, 500);
