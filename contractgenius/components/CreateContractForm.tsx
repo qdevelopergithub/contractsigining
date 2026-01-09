@@ -26,8 +26,8 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
     address: '',
     categories: [],
     otherCategory: '',
-    boothSize: "1 Standard || 13' x 8' || (4 Fixtures)",
-    finalBoothSize: "1 Standard || 13' x 8' || (4 Fixtures)",
+    boothSize: "1 Standard || (4 Fixtures)",
+    finalBoothSize: "1 Standard || (4 Fixtures)",
     selectedFixtures: [{ type: 'Display Counter (Large)', quantity: 4 }],
     fixture: 'Display Counter (Large)',
     fixtureQuantity: 4,
@@ -628,8 +628,8 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
                       }}
                     >
                       {[
-                        "1 Standard || 13' x 8' || (4 Fixtures)",
-                        "1.5 Standard || 20' x 8' || (6 Fixtures)",
+                        "1 Standard || (4 Fixtures)",
+                        "1.5 Standard || (6 Fixtures)",
                         "2 Standard || (8 Fixtures)",
                         "2.5 Standard || (10 Fixtures)",
                         "3 Standard || (12 Fixtures)",

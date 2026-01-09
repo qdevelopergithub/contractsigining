@@ -1,6 +1,6 @@
 export enum BoothSize {
-  ONE_STANDARD = "1 Standard || 13' x 8' || (4 Fixtures)",
-  ONE_HALF_STANDARD = "1.5 Standard || 20' x 8' || (6 Fixtures)",
+  ONE_STANDARD = "1 Standard || (4 Fixtures)",
+  ONE_HALF_STANDARD = "1.5 Standard || (6 Fixtures)",
   TWO_STANDARD = "2 Standard || (8 Fixtures)",
   TWO_HALF_STANDARD = "2.5 Standard || (10 Fixtures)",
   THREE_STANDARD = "3 Standard || (12 Fixtures)",

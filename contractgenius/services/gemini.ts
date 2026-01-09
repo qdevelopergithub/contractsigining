@@ -27,10 +27,10 @@ export const generateContractDraft = async (details: VendorDetails): Promise<str
     Exhibitor Info:
     - Exhibitor Type: ${details.exhibitorType}
     - Company Name: ${details.company}
-    - Brands:
+    - Brands/Showroom Details:
 ${brandsList}
     
-    Contact Details:
+    Contact Information (For "Parties" section):
 ${contactsList}
     - Company Address: ${details.address}
 
@@ -46,10 +46,14 @@ ${fixturesList}
     Requirements:
     1. Title: "Exhibition Service Agreement".
     2. Date: Use today's date (${new Date().toLocaleDateString()}).
-    3. **Important:** Explicitly include the **Company Address** and **Company Name** in the Parties section.
-    4. Include sections for: Agreement Parties, Booth Allocation & Fixtures, Fees & Payment, Liability & Insurance, and Signatures.
-    5. The tone should be formal and binding.
-    6. Format in Markdown.
+    3. **Parties Section:** 
+       - Explicitly state the Agreement is between [Organizer Name] and **${details.company}**. 
+       - Include the **Company Address** and the **Primary Contact Name** as the authorized representative in this section.
+    4. **Contact Details:** Do NOT create a separate "Contact Details" section in the contract body. The contact info in the Parties section is sufficient.
+    5. **Exhibitor Specifics:** Only include Brand/Showroom details that are relevant to the selected Exhibitor Type (${details.exhibitorType}).
+    6. Include sections for: Agreement Parties, Booth Allocation & Fixtures, Fees & Payment, Liability & Insurance, and Signatures.
+    7. The tone should be formal and binding.
+    8. Format in Markdown.
     Do not include any conversational filler at the beginning or end.
     Use placeholders like [Organizer Name] for the event organizer details.
   `;
