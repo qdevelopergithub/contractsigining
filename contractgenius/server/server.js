@@ -249,7 +249,8 @@ app.post('/api/contracts/sign', async (req, res) => {
     // 4. Upload to Google Drive
     try {
       const folderId = process.env.DRIVE_FOLDER_ID || '128nIyVuoTQh1i1ZLO4Mrpc4RF7ylK0w3';
-      const fileName = `Signed_Contract_${vendor.name.replace(/\s+/g, '_')}_${Date.now()}.pdf`;
+      const safeName = (vendor.name || vendor.company || 'Unknown_Vendor').replace(/\s+/g, '_');
+      const fileName = `Signed_Contract_${safeName}_${Date.now()}.pdf`;
       console.log(`[Server] Attempting Google Drive upload to folder: ${folderId}`);
       await uploadToDrive(Buffer.from(pdfBytes), fileName, folderId);
       console.log('Contract uploaded to Google Drive successfully.');

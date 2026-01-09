@@ -147,8 +147,7 @@ This agreement is between **Event Organizer** and **${vendorDetails.company}** (
 * **Email:** ${vendorDetails.contacts[0]?.email || 'N/A'}
 * **Phone:** ${vendorDetails.contacts[0]?.phone || 'N/A'}
 
-**Additional Contacts:**
-${vendorDetails.contacts.slice(1).map(c => `* **Name:** ${c.name} (${c.email})`).join('\n') || 'None'}
+
 
 ## 2. BOOTH ALLOCATION & FIXTURES
 The Vendor is allocated the following:

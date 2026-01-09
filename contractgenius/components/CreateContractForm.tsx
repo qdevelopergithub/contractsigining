@@ -182,8 +182,8 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
     });
 
     formData.selectedFixtures.forEach((fixture, idx) => {
-      if (fixture.quantity <= 0) {
-        newErrors[`fixtureQty_${idx}`] = "Quantity must be at least 1";
+      if (fixture.quantity < 0) {
+        newErrors[`fixtureQty_${idx}`] = "Quantity cannot be negative";
       }
     });
 
@@ -201,7 +201,8 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
     if (!isValid) {
       const firstError = Object.keys(currentErrors)[0];
       if (firstError) {
-        const element = document.getElementsByName(firstError)[0];
+        // Try getting by ID first (for dynamic rows), then by name
+        const element = document.getElementById(firstError) || document.getElementsByName(firstError)[0];
         element?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         element?.focus();
       }
@@ -386,6 +387,7 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
                         if (errors.company) setErrors(prev => ({ ...prev, company: '' }));
                       }}
                       placeholder={formData.exhibitorType === 'Multi-line showroom' ? "Showroom Name" : "Acme Corp"}
+                      id="company"
                     />
                   </div>
                   {errors.company && <p className="text-red-500 text-xs mt-1">{errors.company}</p>}
@@ -418,6 +420,7 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
                               }}
                               className={`${inputClass} ${errors[`brandName_${idx}`] ? 'border-red-500 ring-2 ring-red-100' : ''}`}
                               placeholder="Brand Identity"
+                              id={`brandName_${idx}`}
                             />
                           </div>
                           {errors[`brandName_${idx}`] && <p className="text-red-500 text-xs mt-1">{errors[`brandName_${idx}`]}</p>}
@@ -513,6 +516,7 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
                             }}
                             className={`${inputClass} ${errors[`contactName_${idx}`] ? 'border-red-500 ring-2 ring-red-100' : ''}`}
                             placeholder="John Doe"
+                            id={`contactName_${idx}`}
                           />
                         </div>
                         {errors[`contactName_${idx}`] && <p className="text-red-500 text-xs mt-1">{errors[`contactName_${idx}`]}</p>}
@@ -543,6 +547,7 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
                             }}
                             className={`${inputClass} ${errors[`contactEmail_${idx}`] ? 'border-red-500 ring-2 ring-red-100' : ''}`}
                             placeholder="john@company.com"
+                            id={`contactEmail_${idx}`}
                           />
                         </div>
                         {errors[`contactEmail_${idx}`] && <p className="text-red-500 text-xs mt-1">{errors[`contactEmail_${idx}`]}</p>}
@@ -574,6 +579,7 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
                         if (errors.address) setErrors(prev => ({ ...prev, address: '' }));
                       }}
                       placeholder="Street Address, City, State, ZIP, Country"
+                      id="address"
                     />
                   </div>
                   {errors.address && <p className="text-red-500 text-xs mt-1">{errors.address}</p>}
@@ -626,8 +632,9 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
                           finalDesc = `${units} Custom || ${details} || (${qty} Fixtures)`;
                         }
 
-                        const newFixtures = [...formData.selectedFixtures];
-                        if (newFixtures.length === 1) newFixtures[0].quantity = 1;
+                        // Reset fixtures to default state when booth size changes
+                        const defaultFixture = { type: 'Display Counter (Large)', quantity: 4 }; // Default baseline
+                        const newFixtures = [defaultFixture];
 
                         setFormData({ ...formData, boothSize: size, finalBoothSize: finalDesc, selectedFixtures: newFixtures });
                       }}
@@ -687,19 +694,23 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
                       >
                         {VALID_FIXTURES.map(type => <option key={type} value={type}>{type}</option>)}
                       </select>
-                      <input
-                        type="number"
-                        className="w-20 px-3 py-1.5 border rounded text-sm"
-                        value={fix.quantity}
-                        max={999}
-                        onInput={(e) => {
-                          if (e.currentTarget.value.length > 3) {
-                            e.currentTarget.value = e.currentTarget.value.slice(0, 3);
-                          }
-                        }}
-                        onChange={(e) => handleFixtureChange(idx, 'quantity', parseInt(e.target.value) || 0)}
-                      />
-                      {errors[`fixtureQty_${idx}`] && <p className="text-red-500 text-xs">{errors[`fixtureQty_${idx}`]}</p>}
+                      <div className="flex flex-col">
+                        <input
+                          type="number"
+                          className="w-20 px-3 py-1.5 border rounded text-sm"
+                          value={fix.quantity}
+                          max={999}
+                          min={0}
+                          onInput={(e) => {
+                            if (e.currentTarget.value.length > 3) {
+                              e.currentTarget.value = e.currentTarget.value.slice(0, 3);
+                            }
+                          }}
+                          onChange={(e) => handleFixtureChange(idx, 'quantity', parseInt(e.target.value) || 0)}
+                          id={`fixtureQty_${idx}`}
+                        />
+                        {errors[`fixtureQty_${idx}`] && <p className="text-red-500 text-[10px] mt-0.5 whitespace-nowrap">{errors[`fixtureQty_${idx}`]}</p>}
+                      </div>
                       {formData.selectedFixtures.length > 1 && (
                         <button type="button" onClick={() => removeFixtureRow(idx)} className="text-red-500 p-1">×</button>
                       )}
@@ -728,6 +739,7 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
                           handleChange(e);
                           if (errors.eventDate) setErrors(prev => ({ ...prev, eventDate: '' }));
                         }}
+                        id="eventDate"
                       />
                     </div>
                     {errors.eventDate && <p className="text-red-500 text-xs mt-1">{errors.eventDate}</p>}
