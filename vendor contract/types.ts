@@ -29,7 +29,10 @@ export enum FixtureType {
   CLOTHING_RAIL = 'Clothing Rail / Rack',
   SHOWCASE_CABINET = 'Showcase Cabinet (Glass)',
   BROCHURE_RACK = 'Brochure Rack (Floor Stand)',
-  POWER_DROP = 'Power Drop (15 Amp)'
+  POWER_DROP = 'Power Drop (15 Amp)',
+  ROLLING_RACK = 'Rolling Rack',
+  DOUBLE_HANG = 'Double Hang',
+  ROLLING_RACK_SHELVES = 'Rolling Rack with Shelves'
 }
 
 export enum PaymentMode {

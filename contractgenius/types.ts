@@ -50,6 +50,7 @@ export interface VendorDetails {
   eventDate: string;
   specialRequirements: string;
   notes?: string;
+  paymentMode?: string;
 }
 
 export interface Contract {

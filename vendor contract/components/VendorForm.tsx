@@ -1,6 +1,6 @@
 import React from 'react';
 import { VendorFormData, BoothSize, FixtureType, PaymentMode, SelectedFixture, ExhibitorType, BrandInfo, ContactInfo } from '../types';
-import { User, Mail, MapPin, Building2, LayoutGrid, Lamp, ShoppingCart, CreditCard, FileText, Send, Loader2, Globe, Instagram, Phone, Plus, Trash2, CheckSquare, FileCheck, Layers } from 'lucide-react';
+import { User, Mail, MapPin, Building2, LayoutGrid, Lamp, ShoppingCart, CreditCard, FileText, Send, Loader2, Globe, Instagram, Phone, Plus, Trash2, CheckSquare, FileCheck, Layers, Eye, X } from 'lucide-react';
 
 interface VendorFormProps {
   data: VendorFormData;
@@ -34,10 +34,20 @@ const VALID_FIXTURES = [
   FixtureType.SHELVING_UNIT_4FT,
   FixtureType.SHELVING_UNIT_6FT,
   FixtureType.CLOTHING_RAIL,
+  FixtureType.ROLLING_RACK,
+  FixtureType.DOUBLE_HANG,
+  FixtureType.ROLLING_RACK_SHELVES,
   FixtureType.SHOWCASE_CABINET,
   FixtureType.BROCHURE_RACK,
   FixtureType.POWER_DROP
 ];
+
+const FIXTURE_IMAGES: Record<string, string> = {
+  [FixtureType.ROLLING_RACK]: '/assets/fixtures/rolling_rack.png',
+  [FixtureType.DOUBLE_HANG]: '/assets/fixtures/double_hang.png',
+  [FixtureType.ROLLING_RACK_SHELVES]: '/assets/fixtures/rolling_rack_shelves.png',
+  [FixtureType.CLOTHING_RAIL]: '/assets/fixtures/rolling_rack.png', // Fallback/Mapping
+};
 
 const VendorForm: React.FC<VendorFormProps> = ({
   data,
@@ -47,6 +57,7 @@ const VendorForm: React.FC<VendorFormProps> = ({
   processingText = "Generating Contract..."
 }) => {
   const [errors, setErrors] = React.useState<Record<string, string>>({});
+  const [previewImage, setPreviewImage] = React.useState<string | null>(null);
 
   const validate = (): { isValid: boolean, currentErrors: Record<string, string> } => {
     const newErrors: Record<string, string> = {};
@@ -101,10 +112,8 @@ const VendorForm: React.FC<VendorFormProps> = ({
 
   const calculateTotalQuota = (size: BoothSize, customSize?: string): number => {
     if (size === BoothSize.CUSTOM_LARGE && customSize) {
-      // In Custom Booth, the entered number IS the booth count. 
-      // 1 Booth = 4 Fixtures. So multiply by 4 to get fixture quota.
-      const num = parseFloat(customSize) || 0;
-      return Math.ceil(num * 4);
+      // In Custom Booth, the entered number IS the FIXTURE count.
+      return parseFloat(customSize) || 0;
     }
     const match = size.match(/\((\d+)\s+Fixtures\)/);
     if (match) return parseInt(match[1]);
@@ -132,8 +141,9 @@ const VendorForm: React.FC<VendorFormProps> = ({
 
       // Update final description in professional format
       if (sizeToUse === BoothSize.CUSTOM_LARGE) {
-        const boothCount = customSizeToUse || '0';
-        newData.finalBoothSize = `${boothCount} Custom || (${qty} Fixtures)`;
+        const fixtureCount = parseFloat(customSizeToUse || '0') || 0;
+        const boothCount = fixtureCount / 4;
+        newData.finalBoothSize = `${boothCount} Custom || (${fixtureCount} Fixtures)`;
       } else {
         newData.finalBoothSize = sizeToUse;
       }
@@ -584,7 +594,7 @@ const VendorForm: React.FC<VendorFormProps> = ({
                         readOnly
                         className="w-full px-4 py-2 border border-blue-200 rounded-lg bg-white/50 text-xs font-mono text-blue-700"
                       />
-                      <p className={helperClass}>Equation: {data.customBoothSize || '0'} Booths × 4 = {totalQuota} Fixtures</p>
+                      <p className={helperClass}>Equation: {data.customBoothSize || '0'} Fixtures / 4 = {(parseFloat(data.customBoothSize || '0') / 4).toFixed(1)} Booths</p>
                     </div>
                   </div>
                 )}
@@ -618,12 +628,22 @@ const VendorForm: React.FC<VendorFormProps> = ({
                           <select
                             value={fix.type}
                             onChange={(e) => handleFixtureChange(idx, 'type', e.target.value as FixtureType)}
-                            className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent"
+                            className="w-full pl-10 pr-12 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent"
                           >
                             {VALID_FIXTURES.map((type) => (
                               <option key={type} value={type}>{type}</option>
                             ))}
                           </select>
+                          {FIXTURE_IMAGES[fix.type] && (
+                            <button
+                              type="button"
+                              onClick={() => setPreviewImage(FIXTURE_IMAGES[fix.type])}
+                              className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-accent hover:bg-blue-50 rounded-full transition-all"
+                              title="Preview Image"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </button>
+                          )}
                         </div>
                       </div>
                       <div className="md:col-span-3">
@@ -679,6 +699,21 @@ const VendorForm: React.FC<VendorFormProps> = ({
                 )}
               </div>
 
+              {/* Additional Notes */}
+              <div className="pt-4 border-t border-slate-100">
+                <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider mb-4 flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-accent" />
+                  Additional Requests & Special Notes
+                </h3>
+                <textarea
+                  value={data.notes || ''}
+                  onChange={(e) => handleChange('notes', e.target.value)}
+                  className="w-full p-4 border border-slate-300 rounded-xl focus:ring-2 focus:ring-accent focus:border-transparent outline-none transition-all min-h-[100px] text-sm"
+                  placeholder="PLEASE NOTE ANY REQUESTS YOU MAY HAVE FOR YOUR BOOTH (ADJACENCIES, FIXTURES, ETC.) LIST ANY SHOWROOMS/ OR AGENCIES YOU NEED TO BE PLACED NEAR. WE WILL TRY OUR BEST TO ACCOMODATE :"
+                />
+                <p className="text-[10px] text-slate-400 mt-1">These details will be included in your contract draft.</p>
+              </div>
+
               <div>
                 <label className={labelClass}>Payment Mode</label>
                 <div className="relative">
@@ -694,24 +729,6 @@ const VendorForm: React.FC<VendorFormProps> = ({
                   </select>
                 </div>
               </div>
-            </div>
-          </section>
-
-          {/* Additional Notes */}
-          <section className="bg-white p-6 md:p-8 rounded-xl shadow-lg border border-slate-100">
-            <h2 className="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2 border-b pb-2">
-              <FileText className="w-5 h-5 text-accent" />
-              Additional Requests
-            </h2>
-            <div className="space-y-4">
-              <label className={labelClass}>Notes / Adjacencies / Special Requests</label>
-              <textarea
-                value={data.notes || ''}
-                onChange={(e) => handleChange('notes', e.target.value)}
-                className="w-full p-4 border border-slate-300 rounded-xl focus:ring-2 focus:ring-accent focus:border-transparent outline-none transition-all min-h-[120px] text-sm"
-                placeholder="PLEASE NOTE ANY REQUESTS YOU MAY HAVE FOR YOUR BOOTH (ADJACENCIES, FIXTURES, ETC.) LIST ANY SHOWROOMS/ OR AGENCIES YOU NEED TO BE PLACED NEAR. WE WILL TRY OUR BEST TO ACCOMODATE :"
-              />
-              <p className="text-[10px] text-slate-400">These details will be included in your contract draft.</p>
             </div>
           </section>
 
@@ -737,6 +754,32 @@ const VendorForm: React.FC<VendorFormProps> = ({
             )}
           </button>
         </>
+      )}
+      {/* Fixture Preview Modal */}
+      {previewImage && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200"
+          onClick={() => setPreviewImage(null)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden relative animate-in zoom-in-95 duration-200"
+            onClick={e => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setPreviewImage(null)}
+              className="absolute top-4 right-4 p-2 bg-white/80 hover:bg-white rounded-full text-slate-500 hover:text-red-500 shadow-sm transition-all z-10"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <div className="p-1 bg-slate-50">
+              <img src={previewImage} alt="Fixture Preview" className="w-full h-auto object-contain max-h-[70vh] rounded-xl" />
+            </div>
+            <div className="p-4 text-center border-t">
+              <p className="text-sm font-bold text-slate-900">Fixture Reference Image</p>
+              <p className="text-xs text-slate-500">Standard design configuration</p>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
