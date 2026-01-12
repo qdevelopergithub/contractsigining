@@ -27,7 +27,7 @@ const App: React.FC = () => {
 
           // Check if expired
           if (parsedData.id) {
-            const rawBackendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+            const rawBackendUrl = import.meta.env.VITE_BACKEND_URL || 'https://contract-genius-backend-93t6.onrender.com';
             const backendUrl = rawBackendUrl.startsWith('http') ? rawBackendUrl : `https://${rawBackendUrl}`;
 
             fetch(`${backendUrl}/api/contracts/${parsedData.id}`)
