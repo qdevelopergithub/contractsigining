@@ -168,9 +168,8 @@ const App: React.FC = () => {
     try {
       setAppStatus('SENDING');
 
-      // Use the actual contractId from the URL, or fallback to a new one for fresh submissions
       const activeContractId = currentContractId || ("vendor_sub_" + Date.now().toString(36));
-      console.log(`[App] Signing contract: ${activeContractId}`);
+      console.log(`[App] 📝 Signing contract with ID: ${activeContractId}`);
 
       // Call Backend to handle everything (PDF, Drive, Email)
       const rawBackendUrl = import.meta.env.VITE_BACKEND_URL || 'https://contract-genius-backend-93t6.onrender.com';

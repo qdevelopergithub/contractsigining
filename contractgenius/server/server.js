@@ -165,8 +165,8 @@ ${fixturesList}
     console.log(`[Server] ✅ Contract ${contractId} created and saved to database`);
 
     // 3. Return contract ID to frontend
-    // Use the dedicated signing app URL (9kgu) for the magic link
-    const signingAppUrl = process.env.SIGNING_APP_URL || process.env.FRONTEND_URL || "http://localhost:3004";
+    // Force use of the dedicated signing app URL (9kgu) for the magic link as requested by user
+    const signingAppUrl = process.env.SIGNING_APP_URL || "https://contractsigining-9kgu.vercel.app";
     const magicLink = `${signingAppUrl.replace(/\/$/, "")}/#/contract/${contractId}`;
 
     res.json({
