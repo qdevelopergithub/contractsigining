@@ -138,7 +138,7 @@ ${fixturesList}
       vendorDetails: {
         exhibitorType: req.body.exhibitorType,
         brands: req.body.brands || [],
-        company: req.body.company,
+        company: req.body.company || req.body.companyName, // Fallback for VendorForm
         contacts: req.body.contacts || [],
         email: req.body.email,
         address: req.body.address,
