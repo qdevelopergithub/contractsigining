@@ -165,8 +165,9 @@ ${fixturesList}
     console.log(`[Server] ✅ Contract ${contractId} created and saved to database`);
 
     // 3. Return contract ID to frontend
-    const frontendBaseUrl = process.env.FRONTEND_URL || "http://localhost:3004";
-    const magicLink = `${frontendBaseUrl}/#/contract/${contractId}`;
+    // Use the dedicated signing app URL (9kgu) for the magic link
+    const signingAppUrl = process.env.SIGNING_APP_URL || process.env.FRONTEND_URL || "http://localhost:3004";
+    const magicLink = `${signingAppUrl.replace(/\/$/, "")}/#/contract/${contractId}`;
 
     res.json({
       success: true,
@@ -213,7 +214,16 @@ app.get('/api/contracts/:id', (req, res) => {
 app.post('/api/contracts/sign', async (req, res) => {
   try {
     const { contractId, signatureImageBase64, contractData } = req.body;
-    let contract = contractsDb.get(contractId) || contractData;
+
+    // CRITICAL: Try to get the existing contract from the database first to ensure status update persists
+    let contract = contractsDb.get(contractId);
+
+    if (!contract && contractData) {
+      console.log(`[Server] ⚠️ Contract ${contractId} not found, using provided contract data`);
+      contract = contractData;
+      // Ensure the ID is set correctly if using provided data
+      contract.id = contractId;
+    }
 
     if (!contract) return res.status(404).json({ message: "Contract not found" });
 

@@ -12,6 +12,7 @@ const App: React.FC = () => {
   const [appStatus, setAppStatus] = useState<AppStatus>('IDLE');
   const [error, setError] = useState<string | null>(null);
   const [emailDeliveryStatus, setEmailDeliveryStatus] = useState<'SUCCESS' | 'FAILED' | null>(null);
+  const [currentContractId, setCurrentContractId] = useState<string | null>(null);
 
   // Keep legacy hash checking if needed, but primary flow is now direct submission
   useEffect(() => {
@@ -20,6 +21,7 @@ const App: React.FC = () => {
     // 1. Handle NEW Magic Links (#/contract/ID)
     if (hash && hash.startsWith('#/contract/')) {
       const contractId = hash.slice('#/contract/'.length);
+      setCurrentContractId(contractId);
       console.log(`[App] Loading contract from server: ${contractId}`);
 
       setAppStatus('GENERATING');
@@ -166,15 +168,19 @@ const App: React.FC = () => {
     try {
       setAppStatus('SENDING');
 
+      // Use the actual contractId from the URL, or fallback to a new one for fresh submissions
+      const activeContractId = currentContractId || ("vendor_sub_" + Date.now().toString(36));
+      console.log(`[App] Signing contract: ${activeContractId}`);
+
       // Call Backend to handle everything (PDF, Drive, Email)
-      const rawBackendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+      const rawBackendUrl = import.meta.env.VITE_BACKEND_URL || 'https://contract-genius-backend-93t6.onrender.com';
       const backendUrl = rawBackendUrl.startsWith('http') ? rawBackendUrl : `https://${rawBackendUrl}`;
 
       await fetch(`${backendUrl}/api/contracts/sign`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          contractId: "vendor_sub_" + Date.now().toString(36), // Temporary ID for direct submissions
+          contractId: activeContractId,
           signatureImageBase64: signature,
           contractData: {
             vendorDetails: formData,
