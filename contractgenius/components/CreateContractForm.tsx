@@ -2,7 +2,7 @@
 /** @jsxFrag React.Fragment */
 import React, { useState } from 'react';
 import { VendorDetails, BrandInfo, ContactInfo } from '../types';
-import { Sparkles, Send, Loader2, Settings, Copy, Check, Building2, FileCheck, ShoppingCart, Globe, Instagram, User, Mail, Phone, MapPin, FileText, Plus, LayoutGrid, Layers, Trash2 } from 'lucide-react';
+import { Sparkles, Send, Loader2, Settings, Copy, Check, Building2, FileCheck, ShoppingCart, Globe, Instagram, User, Mail, Phone, MapPin, FileText, Plus, LayoutGrid, Layers, Trash2, CheckSquare } from 'lucide-react';
 
 interface Props {
   navigate: (path: string) => void;
@@ -62,14 +62,21 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
     'Power Drop (15 Amp)'
   ];
 
-  const calculateTotalQuota = (size: string, customUnits?: string): number => {
-    if (size === "Custom Fixture" && customUnits) {
-      const num = parseFloat(customUnits) || 0;
+  const calculateTotalQuota = (size: string, customSize?: string): number => {
+    if (size === "Custom Fixture" && customSize) {
+      const num = parseFloat(customSize) || 0;
       return Math.ceil(num * 4);
     }
     const match = size.match(/\((\d+)\s+Fixtures\)/);
     if (match) return parseInt(match[1]);
     return 4;
+  };
+
+  const calculateFurniture = (fixtures: number) => {
+    if (fixtures < 4) return { tables: 1, chairs: 2 };
+    const tables = Math.floor(fixtures / 4);
+    const chairs = tables * 3;
+    return { tables, chairs };
   };
 
   const currentTotalFixtures = formData.selectedFixtures.reduce((sum, f) => sum + f.quantity, 0);
@@ -534,15 +541,15 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
                         {errors[`contactName_${idx}`] && <p className="text-red-500 text-xs mt-1">{errors[`contactName_${idx}`]}</p>}
                       </div>
                       <div>
-                        <label className={labelClass}>Title</label>
+                        <label className={labelClass}>{idx === 0 ? 'Primary Phone' : 'Title'}</label>
                         <div className="relative">
-                          <FileText className={iconClass} />
+                          {idx === 0 ? <Phone className={iconClass} /> : <FileText className={iconClass} />}
                           <input
                             type="text"
-                            value={contact.title}
-                            onChange={(e) => handleContactChange(idx, 'title', e.target.value)}
+                            value={idx === 0 ? contact.phone : contact.title}
+                            onChange={(e) => handleContactChange(idx, idx === 0 ? 'phone' : 'title', e.target.value)}
                             className={inputClass}
-                            placeholder="Managing Director"
+                            placeholder={idx === 0 ? "+1 (555) 001-0011" : "Managing Director"}
                           />
                         </div>
                       </div>
@@ -639,9 +646,8 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
                         const qty = calculateTotalQuota(size, formData.customBoothSize);
                         let finalDesc = size;
                         if (size === "Custom Fixture") {
-                          const units = formData.customBoothSize || '7.0+';
-                          const details = formData.customBoothRequirements || 'Custom Dimensions';
-                          finalDesc = `${units} Custom || ${details} || (${qty} Fixtures)`;
+                          const boothCount = formData.customBoothSize || '0';
+                          finalDesc = `${boothCount} Custom || (${qty} Fixtures)`;
                         }
 
                         // Reset fixtures to default state when booth size changes
@@ -678,14 +684,14 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
                             maxLength={4}
                             value={formData.customBoothSize || ''}
                             onChange={(e) => {
-                              const units = e.target.value;
+                              const units = e.target.value.replace(/[^0-9.]/g, '');
                               const qty = calculateTotalQuota("Custom Fixture", units);
-                              const finalDesc = `${units || 'Custom'} Custom || (${qty} Fixtures)`;
+                              const finalDesc = `${units || '0'} Custom || (${qty} Fixtures)`;
                               const newFixtures = [...formData.selectedFixtures];
                               if (newFixtures.length === 1) newFixtures[0].quantity = 1;
                               setFormData({ ...formData, customBoothSize: units, finalBoothSize: finalDesc, selectedFixtures: newFixtures });
                             }}
-                            placeholder="e.g. 8.5"
+                            placeholder="e.g. 4"
                           />
                         </div>
                       </div>
@@ -696,6 +702,15 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
                 <div className="p-4 border rounded-lg space-y-4">
                   <div className="flex justify-between items-center text-xs font-bold uppercase tracking-wider text-gray-500">
                     <span>Fixtures ({currentTotalFixtures} / {totalQuota})</span>
+                  </div>
+                  <div className="p-3 bg-indigo-50 border border-indigo-100 rounded-lg flex items-center justify-between text-indigo-700">
+                    <div className="flex items-center gap-2">
+                      <CheckSquare className="w-4 h-4" />
+                      <span className="text-xs font-bold uppercase">Standard Furniture Allotment:</span>
+                    </div>
+                    <div className="text-xs font-mono font-bold bg-white px-2 py-1 rounded shadow-sm">
+                      {calculateFurniture(totalQuota).tables} Table(s) & {calculateFurniture(totalQuota).chairs} Chairs
+                    </div>
                   </div>
                   {formData.selectedFixtures.map((fix, idx) => (
                     <div key={idx} className="flex gap-2 items-center">
@@ -764,6 +779,22 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
                     </div>
                   </div>
                 </div>
+              </div>
+            </div>
+
+            {/* Additional Notes */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
+              <h2 className="text-lg font-bold text-gray-900 border-b pb-2">Additional Requests</h2>
+              <div className="space-y-2">
+                <label className={labelClass}>Notes / Adjacencies / Special Requests</label>
+                <textarea
+                  name="notes"
+                  rows={4}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all text-sm"
+                  value={formData.notes || ''}
+                  onChange={handleChange}
+                  placeholder="PLEASE NOTE ANY REQUESTS YOU MAY HAVE FOR YOUR BOOTH (ADJACENCIES, FIXTURES, ETC.) LIST ANY SHOWROOMS/ OR AGENCIES YOU NEED TO BE PLACED NEAR. WE WILL TRY OUR BEST TO ACCOMODATE :"
+                />
               </div>
             </div>
 

@@ -37,6 +37,15 @@ export const generateVendorContract = async (data: VendorFormData): Promise<stri
   const fixturesList = data.selectedFixtures?.map(f => `- ${f.type} (Qty: ${f.quantity})`).join('\n');
   const categoriesList = data.categories.join(', ') + (data.categories.includes('Other') && data.otherCategory ? ` (${data.otherCategory})` : '');
 
+  const calculateFurniture = (fixtures: number) => {
+    if (fixtures < 4) return { tables: 1, chairs: 2 };
+    const tables = Math.floor(fixtures / 4);
+    const chairs = tables * 3;
+    return { tables, chairs };
+  };
+  const furniture = calculateFurniture(data.selectedFixtures.reduce((sum, f) => sum + f.quantity, 0));
+  const furnitureText = `${furniture.tables} Table(s) and ${furniture.chairs} Chair(s)`;
+
   const prompt = `
     Generate a formal, legally binding "Exhibition Service Agreement" between **[Organizer Name]** and **${data.companyName}**.
 
@@ -56,15 +65,18 @@ ${validContactsList}
     - Booth Package: ${data.finalBoothSize || data.boothSize}
     - Fixtures Included:
 ${fixturesList}
+    - Standard Furniture Allotment: ${furnitureText}
     - Categories: ${categoriesList}
     - Payment Method: ${data.paymentMode || 'Not Specified'}
+    - Additional Notes/Requests: ${data.notes || 'None'}
 
     **Instructions for Output:**
     1. **Parties Section**: Start with a formal declaration: "This Agreement is made on [Date] between [Organizer Name] ('Organizer') and ${data.companyName}, located at ${data.address} ('Vendor')."
     2. **Exhibitor Info Section**: Create a distinct section titled "Exhibitor Information". List the **Exhibitor Type**, **Company Name**, and **Brands/Showroom** details here.
     3. **Contact Details Section**: Create a distinct section titled "Contact Details". List **ALL** contacts provided in the "Authorized Contacts" data above. Do NOT include any "N/A" or empty placeholder fields. If multiple contacts are listed above, list all of them.
-    4. **Scope Section**: Clearly list the Booth Package and Fixtures.
-    5. **Standard Clauses**: Include standard sections for Payment, Cancellation Policy, Liability, and Insurance.
+    4. **Scope Section**: Clearly list the Booth Package, Fixtures, and the **Standard Furniture Allotment** (${furnitureText}).
+    5. **Special Requests Section**: If there are any **Additional Notes/Requests**, include them in a separate section titled "Special Requests & Adjacencies".
+    6. **Standard Clauses**: Include standard sections for Payment, Cancellation Policy, Liability, and Insurance.
     6. **Signature Block**: Include space for signatures for clear identification.
     7. **Format**: Use clean Markdown.
   `;

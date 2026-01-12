@@ -84,6 +84,7 @@ export interface VendorFormData {
   fixtureQuantity: number;
 
   paymentMode: PaymentMode;
+  notes?: string;
 }
 
 export const INITIAL_FORM_DATA: VendorFormData = {

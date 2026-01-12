@@ -49,6 +49,7 @@ export interface VendorDetails {
 
   eventDate: string;
   specialRequirements: string;
+  notes?: string;
 }
 
 export interface Contract {

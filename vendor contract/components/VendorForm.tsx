@@ -101,12 +101,21 @@ const VendorForm: React.FC<VendorFormProps> = ({
 
   const calculateTotalQuota = (size: BoothSize, customSize?: string): number => {
     if (size === BoothSize.CUSTOM_LARGE && customSize) {
+      // In Custom Booth, the entered number IS the booth count. 
+      // 1 Booth = 4 Fixtures. So multiply by 4 to get fixture quota.
       const num = parseFloat(customSize) || 0;
       return Math.ceil(num * 4);
     }
     const match = size.match(/\((\d+)\s+Fixtures\)/);
     if (match) return parseInt(match[1]);
     return 4;
+  };
+
+  const calculateFurniture = (fixtures: number) => {
+    if (fixtures < 4) return { tables: 1, chairs: 2 };
+    const tables = Math.floor(fixtures / 4);
+    const chairs = tables * 3;
+    return { tables, chairs };
   };
 
   const totalQuota = calculateTotalQuota(data.boothSize, data.customBoothSize);
@@ -123,8 +132,8 @@ const VendorForm: React.FC<VendorFormProps> = ({
 
       // Update final description in professional format
       if (sizeToUse === BoothSize.CUSTOM_LARGE) {
-        const units = customSizeToUse || 'Custom';
-        newData.finalBoothSize = `${units} Custom || (${qty} Fixtures)`;
+        const boothCount = customSizeToUse || '0';
+        newData.finalBoothSize = `${boothCount} Custom || (${qty} Fixtures)`;
       } else {
         newData.finalBoothSize = sizeToUse;
       }
@@ -402,7 +411,7 @@ const VendorForm: React.FC<VendorFormProps> = ({
                   <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Contact {data.contacts.length > 1 ? `#${idx + 1}` : ''}</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className={labelClass}>Contact Name <span className="text-red-500">*</span></label>
+                      <label className={labelClass}>{idx === 0 ? 'Primary Contact Name' : 'Contact Name'} <span className="text-red-500">*</span></label>
                       <div className="relative">
                         <User className={iconClass} />
                         <input
@@ -420,15 +429,15 @@ const VendorForm: React.FC<VendorFormProps> = ({
                       {errors[`contactName_${idx}`] && <p className="text-red-500 text-xs mt-1">{errors[`contactName_${idx}`]}</p>}
                     </div>
                     <div>
-                      <label className={labelClass}>Title</label>
+                      <label className={labelClass}>{idx === 0 ? 'Contact #' : 'Title'}</label>
                       <div className="relative">
-                        <FileText className={iconClass} />
+                        {idx === 0 ? <Phone className={iconClass} /> : <FileText className={iconClass} />}
                         <input
                           type="text"
-                          value={contact.title}
-                          onChange={(e) => handleContactChange(idx, 'title', e.target.value)}
+                          value={idx === 0 ? contact.phone : contact.title}
+                          onChange={(e) => handleContactChange(idx, idx === 0 ? 'phone' : 'title', e.target.value)}
                           className={inputClass}
-                          placeholder="Managing Director"
+                          placeholder={idx === 0 ? "+1 (555) 000-0000" : "Managing Director"}
                         />
                       </div>
                     </div>
@@ -557,10 +566,13 @@ const VendorForm: React.FC<VendorFormProps> = ({
                         <input
                           type="text"
                           value={data.customBoothSize || ''}
-                          onChange={(e) => handleChange('customBoothSize', e.target.value)}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/[^0-9.]/g, '');
+                            handleChange('customBoothSize', val);
+                          }}
                           className={inputClass}
                           maxLength={4}
-                          placeholder="e.g. 8.5"
+                          placeholder="e.g. 4"
                         />
                       </div>
                     </div>
@@ -572,6 +584,7 @@ const VendorForm: React.FC<VendorFormProps> = ({
                         readOnly
                         className="w-full px-4 py-2 border border-blue-200 rounded-lg bg-white/50 text-xs font-mono text-blue-700"
                       />
+                      <p className={helperClass}>Equation: {data.customBoothSize || '0'} Booths × 4 = {totalQuota} Fixtures</p>
                     </div>
                   </div>
                 )}
@@ -582,6 +595,16 @@ const VendorForm: React.FC<VendorFormProps> = ({
                   <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Fixture Allocation</h3>
                   <div className={`text-xs font-bold px-3 py-1 rounded-full ${currentTotalFixtures > totalQuota ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`}>
                     {currentTotalFixtures} / {totalQuota} Fixtures Used
+                  </div>
+                </div>
+
+                <div className="p-3 bg-indigo-50 border border-indigo-100 rounded-lg flex items-center justify-between text-indigo-700">
+                  <div className="flex items-center gap-2">
+                    <CheckSquare className="w-4 h-4" />
+                    <span className="text-xs font-bold uppercase">Standard Furniture Allotment:</span>
+                  </div>
+                  <div className="text-xs font-mono font-bold bg-white px-2 py-1 rounded shadow-sm">
+                    {calculateFurniture(totalQuota).tables} Table(s) & {calculateFurniture(totalQuota).chairs} Chairs
                   </div>
                 </div>
 
@@ -671,6 +694,24 @@ const VendorForm: React.FC<VendorFormProps> = ({
                   </select>
                 </div>
               </div>
+            </div>
+          </section>
+
+          {/* Additional Notes */}
+          <section className="bg-white p-6 md:p-8 rounded-xl shadow-lg border border-slate-100">
+            <h2 className="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2 border-b pb-2">
+              <FileText className="w-5 h-5 text-accent" />
+              Additional Requests
+            </h2>
+            <div className="space-y-4">
+              <label className={labelClass}>Notes / Adjacencies / Special Requests</label>
+              <textarea
+                value={data.notes || ''}
+                onChange={(e) => handleChange('notes', e.target.value)}
+                className="w-full p-4 border border-slate-300 rounded-xl focus:ring-2 focus:ring-accent focus:border-transparent outline-none transition-all min-h-[120px] text-sm"
+                placeholder="PLEASE NOTE ANY REQUESTS YOU MAY HAVE FOR YOUR BOOTH (ADJACENCIES, FIXTURES, ETC.) LIST ANY SHOWROOMS/ OR AGENCIES YOU NEED TO BE PLACED NEAR. WE WILL TRY OUR BEST TO ACCOMODATE :"
+              />
+              <p className="text-[10px] text-slate-400">These details will be included in your contract draft.</p>
             </div>
           </section>
 
