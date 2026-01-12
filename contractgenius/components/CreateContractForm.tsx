@@ -2,8 +2,6 @@
 /** @jsxFrag React.Fragment */
 import React, { useState } from 'react';
 import { VendorDetails, BrandInfo, ContactInfo } from '../types';
-import { generateContractDraft } from '../services/gemini';
-import { createContract } from '../services/storage';
 import { Sparkles, Send, Loader2, Settings, Copy, Check, Building2, FileCheck, ShoppingCart, Globe, Instagram, User, Mail, Phone, MapPin, FileText, Plus, LayoutGrid, Layers, Trash2 } from 'lucide-react';
 
 interface Props {
