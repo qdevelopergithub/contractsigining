@@ -16,6 +16,49 @@ const App: React.FC = () => {
   // Keep legacy hash checking if needed, but primary flow is now direct submission
   useEffect(() => {
     const hash = window.location.hash;
+
+    // 1. Handle NEW Magic Links (#/contract/ID)
+    if (hash && hash.startsWith('#/contract/')) {
+      const contractId = hash.slice('#/contract/'.length);
+      console.log(`[App] Loading contract from server: ${contractId}`);
+
+      setAppStatus('GENERATING');
+      const rawBackendUrl = import.meta.env.VITE_BACKEND_URL || 'https://contract-genius-backend-93t6.onrender.com';
+      const backendUrl = rawBackendUrl.startsWith('http') ? rawBackendUrl : `https://${rawBackendUrl}`;
+
+      fetch(`${backendUrl}/api/contracts/${contractId}`)
+        .then(res => {
+          if (res.status === 410) {
+            setAppStatus('EXPIRED');
+            setError("This secure signing link has expired because the contract is already signed.");
+            return null;
+          }
+          if (!res.ok) throw new Error(`Server returned ${res.status}`);
+          return res.json();
+        })
+        .then(data => {
+          if (!data) return;
+          console.log(`[App] ✅ Contract ${contractId} loaded - Status: ${data.status}`);
+
+          // Map backend data to frontend state
+          setFormData(data.vendorDetails || data.vendor || INITIAL_FORM_DATA);
+          setContractText(data.content || data.text);
+
+          if (data.status === 'signed') {
+            setAppStatus('EXPIRED');
+          } else {
+            setAppStatus('SIGNING');
+          }
+        })
+        .catch(err => {
+          console.error("Failed to load contract", err);
+          setError("Failed to load contract details. Please check the link or try again.");
+          setAppStatus('IDLE');
+        });
+      return;
+    }
+
+    // 2. Handle LEGACY Links (#data=...)
     if (hash && hash.startsWith('#data=')) {
       const encodedData = hash.replace('#data=', '');
       if (encodedData) {
@@ -31,9 +74,18 @@ const App: React.FC = () => {
             const backendUrl = rawBackendUrl.startsWith('http') ? rawBackendUrl : `https://${rawBackendUrl}`;
 
             fetch(`${backendUrl}/api/contracts/${parsedData.id}`)
-              .then(res => res.json())
-              .then(data => {
-                if (data.status === 'signed') {
+              .then(res => {
+                if (res.status === 410) {
+                  setAppStatus('EXPIRED');
+                  setError("This secure signing link has expired because the contract is already signed.");
+                  return null;
+                }
+                return res.json();
+              })
+              .then(serverData => {
+                if (!serverData) return; // Handled by 410 status
+
+                if (serverData.status === 'signed') {
                   setAppStatus('EXPIRED');
                   setError("This secure signing link has expired because the contract is already signed.");
                 } else {
