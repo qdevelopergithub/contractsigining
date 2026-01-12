@@ -201,8 +201,11 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
       if (firstError) {
         // Try getting by ID first (for dynamic rows), then by name
         const element = document.getElementById(firstError) || document.getElementsByName(firstError)[0];
-        element?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        element?.focus();
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          // Short delay to ensure scroll finishes before focus
+          setTimeout(() => element.focus(), 100);
+        }
       }
       return;
     }

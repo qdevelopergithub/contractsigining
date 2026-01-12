@@ -89,9 +89,12 @@ const VendorForm: React.FC<VendorFormProps> = ({
       // Scroll to first error
       const firstErrorKey = Object.keys(currentErrors)[0];
       if (firstErrorKey) {
-        const element = document.getElementsByName(firstErrorKey)[0];
-        element?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        element?.focus();
+        const element = document.getElementById(firstErrorKey) || document.getElementsByName(firstErrorKey)[0];
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          // Short delay to ensure scroll finishes before focus
+          setTimeout(() => element.focus(), 100);
+        }
       }
     }
   };
@@ -280,6 +283,7 @@ const VendorForm: React.FC<VendorFormProps> = ({
                     className={`${inputClass} ${errors.companyName ? 'border-red-500 ring-1 ring-red-500' : ''}`}
                     placeholder={data.exhibitorType === 'Multi-line showroom' ? "Showroom Name" : "Acme Corp"}
                     required
+                    id="companyName"
                   />
                 </div>
                 {errors.companyName && <p className="text-red-500 text-xs mt-1">{errors.companyName}</p>}
@@ -311,6 +315,7 @@ const VendorForm: React.FC<VendorFormProps> = ({
                             }}
                             className={`${inputClass} ${errors[`brandName_${idx}`] ? 'border-red-500 ring-1 ring-red-500' : ''}`}
                             placeholder="Brand Identity"
+                            id={`brandName_${idx}`}
                           />
                         </div>
                         {errors[`brandName_${idx}`] && <p className="text-red-500 text-xs mt-1">{errors[`brandName_${idx}`]}</p>}
@@ -409,6 +414,7 @@ const VendorForm: React.FC<VendorFormProps> = ({
                           }}
                           className={`${inputClass} ${errors[`contactName_${idx}`] ? 'border-red-500 ring-1 ring-red-500' : ''}`}
                           placeholder="John Doe"
+                          id={`contactName_${idx}`}
                         />
                       </div>
                       {errors[`contactName_${idx}`] && <p className="text-red-500 text-xs mt-1">{errors[`contactName_${idx}`]}</p>}
@@ -439,6 +445,7 @@ const VendorForm: React.FC<VendorFormProps> = ({
                           }}
                           className={`${inputClass} ${errors[`contactEmail_${idx}`] ? 'border-red-500 ring-1 ring-red-500' : ''}`}
                           placeholder="john@company.com"
+                          id={`contactEmail_${idx}`}
                         />
                       </div>
                       {errors[`contactEmail_${idx}`] && <p className="text-red-500 text-xs mt-1">{errors[`contactEmail_${idx}`]}</p>}
@@ -469,6 +476,7 @@ const VendorForm: React.FC<VendorFormProps> = ({
                     className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent outline-none transition-all min-h-[100px] ${errors.address ? 'border-red-500 ring-1 ring-red-500' : 'border-slate-300'}`}
                     placeholder="Street Address, City, State, ZIP, Country"
                     required
+                    id="address"
                   />
                 </div>
                 {errors.address && <p className="text-red-500 text-xs mt-1 font-normal ml-1">{errors.address}</p>}
@@ -612,6 +620,7 @@ const VendorForm: React.FC<VendorFormProps> = ({
                               }
                             }}
                             className={`w-full pl-10 pr-4 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent ${errors[`fixtureQty_${idx}`] ? 'border-red-500 ring-1 ring-red-500' : 'border-slate-200'}`}
+                            id={`fixtureQty_${idx}`}
                           />
                         </div>
                         {errors[`fixtureQty_${idx}`] && <p className="text-red-500 text-[10px] mt-1 ml-1">{errors[`fixtureQty_${idx}`]}</p>}
