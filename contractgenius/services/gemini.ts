@@ -72,6 +72,7 @@ ${validContactsList}
 ${fixturesList}
     - Standard Furniture Allotment: ${furnitureText}
     - Categories: ${details.categories?.join(', ') || 'General'}
+    - Payment Method: ${details.paymentMode || 'Not Specified'}
     - Special Requirements: ${details.specialRequirements || 'None'}
     - Additional Notes/Requests: ${details.notes || 'None'}
 
@@ -80,10 +81,10 @@ ${fixturesList}
     2. **Exhibitor Info Section**: Create a distinct section titled "Exhibitor Information". List the **Exhibitor Type**, **Company Name**, and **Brands/Showroom** details here.
     3. **Contact Details Section**: Create a distinct section titled "Contact Details". List **ALL** contacts provided in the "Authorized Contacts" data above. Do NOT include any "N/A" or empty placeholder fields.
     4. **Scope Section**: Clearly list the Booth Package, Fixtures, and the **Standard Furniture Allotment** (${furnitureText}).
-    5. **Special Requests Section**: If there are any **Additional Notes/Requests**, include them in a separate section titled "Special Requests & Adjacencies".
-    6. **Standard Clauses**: Include standard sections for Payment (100% due on invoice), Cancellation Policy, Liability, and Insurance.
-    6. **Signature Block**: Include space for signatures for clear identification.
-    7. **Format**: Use clean Markdown.
+    5. **Special Requests & Billing**: Include a section for **Additional Notes/Requests** and clearly state the **Payment Method** (${details.paymentMode || 'Not Specified'}).
+    6. **Standard Clauses**: Include standard sections for Cancellation Policy, Liability, and Insurance.
+    7. **Signature Block**: Include space for signatures for clear identification.
+    8. **Format**: Use clean Markdown.
   `;
 
   try {

@@ -29,24 +29,25 @@ const COUNTRY_CODES = [
 ];
 
 const VALID_FIXTURES = [
-  FixtureType.DISPLAY_COUNTER_L,
-  FixtureType.DISPLAY_COUNTER_S,
-  FixtureType.SHELVING_UNIT_4FT,
-  FixtureType.SHELVING_UNIT_6FT,
   FixtureType.CLOTHING_RAIL,
   FixtureType.ROLLING_RACK,
   FixtureType.DOUBLE_HANG,
   FixtureType.ROLLING_RACK_SHELVES,
-  FixtureType.SHOWCASE_CABINET,
-  FixtureType.BROCHURE_RACK,
-  FixtureType.POWER_DROP
+  FixtureType.ACCESSORY_TABLE,
+  FixtureType.ACCESSORY_SHELF,
+  FixtureType.ACCESSORY_SHELVES_STACKED,
+  FixtureType.FITTING_SCREEN
 ];
 
 const FIXTURE_IMAGES: Record<string, string> = {
   [FixtureType.ROLLING_RACK]: '/assets/fixtures/rolling_rack.png',
   [FixtureType.DOUBLE_HANG]: '/assets/fixtures/double_hang.png',
   [FixtureType.ROLLING_RACK_SHELVES]: '/assets/fixtures/rolling_rack_shelves.png',
-  [FixtureType.CLOTHING_RAIL]: '/assets/fixtures/rolling_rack.png', // Fallback/Mapping
+  [FixtureType.CLOTHING_RAIL]: '/assets/fixtures/rolling_rack.png',
+  [FixtureType.ACCESSORY_TABLE]: '/assets/fixtures/accessory_table.png',
+  [FixtureType.ACCESSORY_SHELF]: '/assets/fixtures/accessory_shelf.png',
+  [FixtureType.ACCESSORY_SHELVES_STACKED]: '/assets/fixtures/accessory_shelves_stacked.png',
+  [FixtureType.FITTING_SCREEN]: '/assets/fixtures/fitting_screen.png',
 };
 
 const VendorForm: React.FC<VendorFormProps> = ({
@@ -204,7 +205,7 @@ const VendorForm: React.FC<VendorFormProps> = ({
 
   const addFixtureRow = () => {
     // Default quantity to 1 for new row
-    const newFixtures = [...data.selectedFixtures, { type: FixtureType.DISPLAY_COUNTER_L, quantity: 1 }];
+    const newFixtures = [...data.selectedFixtures, { type: FixtureType.ROLLING_RACK, quantity: 1 }];
     onChange({ ...data, selectedFixtures: newFixtures });
   };
 
@@ -628,17 +629,27 @@ const VendorForm: React.FC<VendorFormProps> = ({
                           <select
                             value={fix.type}
                             onChange={(e) => handleFixtureChange(idx, 'type', e.target.value as FixtureType)}
-                            className="w-full pl-10 pr-12 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent"
+                            className="w-full pl-10 pr-14 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent"
                           >
-                            {VALID_FIXTURES.map((type) => (
-                              <option key={type} value={type}>{type}</option>
-                            ))}
+                            {VALID_FIXTURES
+                              .filter(type => {
+                                if (type === FixtureType.ACCESSORY_SHELVES_STACKED) {
+                                  return totalQuota === 2;
+                                }
+                                if (type === FixtureType.FITTING_SCREEN) {
+                                  return totalQuota >= 6;
+                                }
+                                return true;
+                              })
+                              .map((type) => (
+                                <option key={type} value={type}>{type}</option>
+                              ))}
                           </select>
                           {FIXTURE_IMAGES[fix.type] && (
                             <button
                               type="button"
                               onClick={() => setPreviewImage(FIXTURE_IMAGES[fix.type])}
-                              className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-accent hover:bg-blue-50 rounded-full transition-all"
+                              className="absolute right-10 top-1/2 -translate-y-1/2 p-2 text-accent hover:bg-blue-50 rounded-full transition-all"
                               title="Preview Image"
                             >
                               <Eye className="w-4 h-4" />

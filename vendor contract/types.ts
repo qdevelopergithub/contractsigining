@@ -22,17 +22,14 @@ export interface ContactInfo {
 }
 
 export enum FixtureType {
-  DISPLAY_COUNTER_L = 'Display Counter (Large)',
-  DISPLAY_COUNTER_S = 'Display Counter (Small)',
-  SHELVING_UNIT_4FT = 'Shelving Unit (4ft)',
-  SHELVING_UNIT_6FT = 'Shelving Unit (6ft)',
   CLOTHING_RAIL = 'Clothing Rail / Rack',
-  SHOWCASE_CABINET = 'Showcase Cabinet (Glass)',
-  BROCHURE_RACK = 'Brochure Rack (Floor Stand)',
-  POWER_DROP = 'Power Drop (15 Amp)',
   ROLLING_RACK = 'Rolling Rack',
   DOUBLE_HANG = 'Double Hang',
-  ROLLING_RACK_SHELVES = 'Rolling Rack with Shelves'
+  ROLLING_RACK_SHELVES = 'Rolling Rack with Shelves',
+  ACCESSORY_TABLE = 'Accessory Table',
+  ACCESSORY_SHELF = 'Accessory Shelf',
+  ACCESSORY_SHELVES_STACKED = '2 Accessory Shelves (Stacked)',
+  FITTING_SCREEN = 'Fitting Screen'
 }
 
 export enum PaymentMode {
@@ -100,8 +97,8 @@ export const INITIAL_FORM_DATA: VendorFormData = {
   categories: [],
   otherCategory: '',
   boothSize: BoothSize.ONE_STANDARD,
-  selectedFixtures: [{ type: FixtureType.DISPLAY_COUNTER_L, quantity: 4 }],
-  fixture: FixtureType.DISPLAY_COUNTER_L,
+  selectedFixtures: [{ type: FixtureType.ROLLING_RACK, quantity: 4 }],
+  fixture: FixtureType.ROLLING_RACK,
   fixtureQuantity: 4,
   paymentMode: PaymentMode.CREDIT_CARD,
 };

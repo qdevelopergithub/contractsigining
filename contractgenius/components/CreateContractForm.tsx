@@ -27,12 +27,13 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
     otherCategory: '',
     boothSize: "1 Standard || (4 Fixtures)",
     finalBoothSize: "1 Standard || (4 Fixtures)",
-    selectedFixtures: [{ type: 'Display Counter (Large)', quantity: 4 }],
-    fixture: 'Display Counter (Large)',
+    selectedFixtures: [{ type: 'Rolling Rack', quantity: 4 }],
+    fixture: 'Rolling Rack',
     fixtureQuantity: 4,
     eventDate: new Date().toISOString().split('T')[0],
     specialRequirements: '',
     paymentMode: 'Credit Card',
+    notes: '',
   });
 
   const COUNTRY_CODES = [
@@ -54,17 +55,14 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
   ];
 
   const VALID_FIXTURES = [
-    'Display Counter (Large)',
-    'Display Counter (Small)',
-    'Shelving Unit (4ft)',
-    'Shelving Unit (6ft)',
     'Clothing Rail / Rack',
     'Rolling Rack',
     'Double Hang',
     'Rolling Rack with Shelves',
-    'Showcase Cabinet (Glass)',
-    'Brochure Rack (Floor Stand)',
-    'Power Drop (15 Amp)'
+    'Accessory Table',
+    'Accessory Shelf',
+    '2 Accessory Shelves (Stacked)',
+    'Fitting Screen'
   ];
 
   const FIXTURE_IMAGES: Record<string, string> = {
@@ -72,6 +70,10 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
     'Double Hang': '/assets/fixtures/double_hang.png',
     'Rolling Rack with Shelves': '/assets/fixtures/rolling_rack_shelves.png',
     'Clothing Rail / Rack': '/assets/fixtures/rolling_rack.png',
+    'Accessory Table': '/assets/fixtures/accessory_table.png',
+    'Accessory Shelf': '/assets/fixtures/accessory_shelf.png',
+    '2 Accessory Shelves (Stacked)': '/assets/fixtures/accessory_shelves_stacked.png',
+    'Fitting Screen': '/assets/fixtures/fitting_screen.png',
   };
 
   const calculateTotalQuota = (size: string, customSize?: string): number => {
@@ -157,7 +159,7 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
   const addFixtureRow = () => {
     setFormData(prev => ({
       ...prev,
-      selectedFixtures: [...prev.selectedFixtures, { type: 'Display Counter (Large)', quantity: 1 }]
+      selectedFixtures: [...prev.selectedFixtures, { type: 'Rolling Rack', quantity: 1 }]
     }));
   };
 
@@ -262,6 +264,8 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
         // Event Details
         eventDate: formData.eventDate,
         specialRequirements: formData.specialRequirements,
+        notes: formData.notes,
+        paymentMode: formData.paymentMode,
       };
 
       // 2. Call backend to create contract and get ID
@@ -663,7 +667,7 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
                         }
 
                         // Reset fixtures to default state when booth size changes
-                        const defaultFixture = { type: 'Display Counter (Large)', quantity: 4 }; // Default baseline
+                        const defaultFixture = { type: 'Rolling Rack', quantity: 4 }; // Default baseline
                         const newFixtures = [defaultFixture];
 
                         setFormData({ ...formData, boothSize: size, finalBoothSize: finalDesc, selectedFixtures: newFixtures });
@@ -729,17 +733,23 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
                     <div key={idx} className="flex gap-2 items-center">
                       <div className="flex-1 relative">
                         <select
-                          className="w-full px-3 pr-10 py-1.5 border rounded text-sm appearance-none"
+                          className="w-full px-3 pr-14 py-1.5 border rounded text-sm appearance-none"
                           value={fix.type}
                           onChange={(e) => handleFixtureChange(idx, 'type', e.target.value)}
                         >
-                          {VALID_FIXTURES.map(type => <option key={type} value={type}>{type}</option>)}
+                          {VALID_FIXTURES
+                            .filter(type => {
+                              if (type === '2 Accessory Shelves (Stacked)') return totalQuota === 2;
+                              if (type === 'Fitting Screen') return totalQuota >= 6;
+                              return true;
+                            })
+                            .map(type => <option key={type} value={type}>{type}</option>)}
                         </select>
                         {FIXTURE_IMAGES[fix.type] && (
                           <button
                             type="button"
                             onClick={() => setPreviewImage(FIXTURE_IMAGES[fix.type])}
-                            className="absolute right-1 top-1/2 -translate-y-1/2 p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-full transition-all"
+                            className="absolute right-10 top-1/2 -translate-y-1/2 p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-full transition-all"
                             title="Preview Image"
                           >
                             <Eye className="w-4 h-4" />
