@@ -213,47 +213,57 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
     setGeneratedLink(null);
 
     try {
-      // mapping correctly for legal consistency
-      const finalDetails = {
-        ...formData,
-        fixture: formData.selectedFixtures[0].type,
-        fixtureQuantity: currentTotalFixtures
-      };
-
-      // 1. Generate Contract Text with Gemini
-      const draftText = await generateContractDraft(finalDetails);
-
-      // 2. Generate the Magic Link Payload
-      const payload = {
-        id: "cont_" + Date.now().toString(36),
-        // Mapping fields for the "vendor contract" app to pick up
+      // 1. Prepare contract data for backend
+      const contractPayload = {
+        // Exhibitor Info
         exhibitorType: formData.exhibitorType,
         brands: formData.brands,
-        companyName: formData.company,
+        company: formData.company,
+
+        // Contacts
         contacts: formData.contacts,
-        email: formData.email,
+        name: formData.contacts[0]?.name || '',
+        email: formData.contacts[0]?.email || formData.email,
+
+        // Address & Categories
         address: formData.address,
         categories: formData.categories,
         otherCategory: formData.otherCategory,
+
+        // Booth & Fixtures
         boothSize: formData.boothSize,
         finalBoothSize: formData.finalBoothSize,
         customBoothSize: formData.customBoothSize,
+        customBoothRequirements: formData.customBoothRequirements,
         selectedFixtures: formData.selectedFixtures,
-        fixture: finalDetails.fixture,
-        fixtureQuantity: finalDetails.fixtureQuantity,
+        fixture: formData.selectedFixtures[0]?.type || 'Display Counter (Large)',
+        fixtureQuantity: currentTotalFixtures,
+
+        // Event Details
         eventDate: formData.eventDate,
         specialRequirements: formData.specialRequirements,
       };
 
-      // Create secure Base64 link
-      const base64Data = btoa(encodeURIComponent(JSON.stringify(payload)));
-      const magicLink = `${window.location.origin}${window.location.pathname}?data=${encodeURIComponent(base64Data)}`;
+      // 2. Call backend to create contract and get ID
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+      const response = await fetch(`${backendUrl}/api/contracts/draft`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(contractPayload)
+      });
 
-      // 3. Save to Local Storage
-      const newContract = createContract(finalDetails, draftText);
+      if (!response.ok) {
+        throw new Error('Failed to create contract on server');
+      }
+
+      const result = await response.json();
+      const contractId = result.contractId;
+      const magicLink = result.magicLink;
+
+      console.log(`[Frontend] ✅ Contract created: ${contractId}`);
       setGeneratedLink(magicLink);
 
-      // 4. Send Email via Make.com Webhook (Unified Flow)
+      // 3. Send Email via Make.com Webhook
       const MAKE_WEBHOOK_URL = "https://hook.us2.make.com/ihncxlrp5nekfz7h2kmy5hni4lv0ct6w";
 
       try {
@@ -264,7 +274,7 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
             action: "submit_vendor_data",
             submissionLink: magicLink,
             email: formData.email,
-            data: payload
+            contractId: contractId
           })
         });
         alert(`Contract Generated!\n\nEmail for signing link triggered via Make.com.`);
@@ -273,7 +283,8 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
         alert("Contract generated, but failed to trigger Make.com email. Check the console.");
       }
 
-      navigate(`#/contract/${newContract.id}`);
+      // 4. Navigate to contract view
+      navigate(`#/contract/${contractId}`);
 
     } catch (error) {
       console.error(error);

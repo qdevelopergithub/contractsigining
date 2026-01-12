@@ -130,23 +130,50 @@ ${fixturesList}
 
     const contractText = completion.choices[0]?.message?.content || "Error: No content generated.";
 
-    // 2. Save Draft
+    // 2. Create Contract ID and Save Full Contract Data to Database
     const contractId = 'contract_' + Date.now().toString(36);
     const contractData = {
       id: contractId,
-      vendor: { name, email, company },
-      text: contractText,
+      // Store complete vendor details for contract preview
+      vendorDetails: {
+        exhibitorType: req.body.exhibitorType,
+        brands: req.body.brands || [],
+        company: req.body.company,
+        contacts: req.body.contacts || [],
+        email: req.body.email,
+        address: req.body.address,
+        categories: req.body.categories || [],
+        otherCategory: req.body.otherCategory || '',
+        boothSize: req.body.boothSize,
+        finalBoothSize: req.body.finalBoothSize,
+        customBoothSize: req.body.customBoothSize,
+        customBoothRequirements: req.body.customBoothRequirements,
+        selectedFixtures: req.body.selectedFixtures || [],
+        fixture: req.body.fixture,
+        fixtureQuantity: req.body.fixtureQuantity,
+        eventDate: req.body.eventDate,
+        specialRequirements: req.body.specialRequirements || ''
+      },
+      vendor: { name, email, company }, // Legacy field for compatibility
+      content: contractText,
+      text: contractText, // Legacy field for compatibility
       status: 'draft',
-      createdAt: new Date()
+      createdAt: Date.now()
     };
     contractsDb.set(contractId, contractData);
     saveContracts();
+    console.log(`[Server] ✅ Contract ${contractId} created and saved to database`);
 
-    // 3. (Optional) Production URL for UI response
+    // 3. Return contract ID to frontend
     const frontendBaseUrl = process.env.FRONTEND_URL || "http://localhost:3004";
     const magicLink = `${frontendBaseUrl}/#/contract/${contractId}`;
 
-    res.json({ success: true, message: "Draft created and email sent", contractId });
+    res.json({
+      success: true,
+      message: "Contract created successfully",
+      contractId,
+      magicLink
+    });
 
   } catch (error) {
     console.error(error);
@@ -167,6 +194,18 @@ app.get('/api/contracts/:id', (req, res) => {
   }
 
   console.log(`[Server] ✅ Contract ${contractId} found - Status: ${contract.status}`);
+
+  // Check if contract is already signed - reject access to prevent re-signing
+  if (contract.status === 'signed') {
+    console.log(`[Server] 🔒 Contract ${contractId} is already SIGNED - Link EXPIRED`);
+    return res.status(410).json({
+      success: false,
+      message: "This contract has already been signed. The link has expired.",
+      status: 'signed',
+      contractId: contractId
+    });
+  }
+
   res.json(contract);
 });
 

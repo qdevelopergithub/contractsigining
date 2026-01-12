@@ -39,7 +39,40 @@ export const VendorContractView: React.FC<Props> = ({ contractId, navigate }) =>
                 console.log(`[VendorContractView] Checking server status at: ${backendUrl}/api/contracts/${contractId}`);
                 const res = await fetch(`${backendUrl}/api/contracts/${contractId}`);
 
-                if (res.ok) {
+                if (res.status === 410) {
+                    // Contract is already signed - link expired
+                    const serverData = await res.json();
+                    console.log(`[VendorContractView] 🔒 Contract ${contractId} is SIGNED - Link EXPIRED`);
+
+                    // Set contract as signed to show expired screen
+                    if (currentContract) {
+                        currentContract = { ...currentContract, status: 'signed' as const };
+                    } else {
+                        // Create minimal contract object to show expired screen
+                        currentContract = {
+                            id: contractId,
+                            status: 'signed' as const,
+                            vendorDetails: {
+                                exhibitorType: '',
+                                brands: [],
+                                company: 'Vendor',
+                                contacts: [{ name: 'Vendor', email: '' }],
+                                email: '',
+                                address: '',
+                                categories: [],
+                                boothSize: '',
+                                selectedFixtures: [],
+                                fixture: '',
+                                fixtureQuantity: 0,
+                                eventDate: '',
+                                specialRequirements: ''
+                            },
+                            content: 'This contract has been signed.',
+                            createdAt: Date.now(),
+                            magicLink: window.location.href
+                        };
+                    }
+                } else if (res.ok) {
                     const serverData = await res.json();
                     console.log(`[VendorContractView] Server response:`, { status: serverData?.status, id: serverData?.id });
 
@@ -48,11 +81,11 @@ export const VendorContractView: React.FC<Props> = ({ contractId, navigate }) =>
                         // Merge server status if signed
                         if (currentContract) {
                             currentContract = { ...currentContract, status: 'signed', signedAt: serverData.signedAt, signatureBase64: serverData.signatureBase64 };
-                            // Update local storage too to persist
-                            // (Considering we just have signContract helper, we might need to manually update or just rely on state for now)
                         }
                     } else {
                         console.log(`[VendorContractView] ⏳ Contract is NOT signed - Link is ACTIVE`);
+                        // Use server data as source of truth
+                        currentContract = serverData;
                     }
                 } else {
                     console.log(`[VendorContractView] ⚠️ Server returned status ${res.status}`);

@@ -33,43 +33,88 @@ const App: React.FC = () => {
     setConnectionFailed(false);
     setError(null);
 
-    const params = new URLSearchParams(window.location.search);
-    const dataParam = params.get('data');
-    const idParam = params.get('id');
+    // Check for contract ID in hash route
+    if (window.location.hash.startsWith('#/contract/')) {
+      const contractId = window.location.hash.slice('#/contract/'.length);
+      console.log(`[App] Loading contract from server: ${contractId}`);
 
-    // OPTION 1: Embedded Data in URL (Primary)
-    if (dataParam) {
       try {
-        const cleanBase64 = decodeURIComponent(dataParam);
-        const jsonString = decodeURIComponent(atob(cleanBase64));
-        const data = JSON.parse(jsonString);
-        const importedId = data.id || 'import_' + Math.random().toString(36).substr(2, 9);
-        processContractData(data, importedId);
-      } catch (e) {
-        console.error("Failed to parse magic link data", e);
+        // Fetch contract from server
+        const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+        const response = await fetch(`${backendUrl}/api/contracts/${contractId}`);
+
+        if (response.status === 410) {
+          // Contract is already signed - link expired
+          const data = await response.json();
+          console.log(`[App] 🔒 Contract ${contractId} is already signed - Link EXPIRED`);
+
+          // Save minimal contract data to show "Already Signed" screen
+          const expiredContract: Contract = {
+            id: contractId,
+            status: 'signed' as const,
+            vendorDetails: {
+              exhibitorType: '',
+              brands: [],
+              company: 'Vendor',
+              contacts: [{ name: 'Vendor', email: '' }],
+              email: '',
+              address: '',
+              categories: [],
+              boothSize: '',
+              selectedFixtures: [],
+              fixture: '',
+              fixtureQuantity: 0,
+              eventDate: '',
+              specialRequirements: ''
+            },
+            content: 'This contract has been signed.',
+            createdAt: Date.now(),
+            magicLink: window.location.href
+          };
+          saveContract(expiredContract);
+
+          if (mountedRef.current) {
+            setCurrentContractId(contractId);
+            setIsInitializing(false);
+          }
+          return;
+        }
+
+        if (!response.ok) {
+          throw new Error(`Server returned ${response.status}`);
+        }
+
+        const contractData = await response.json();
+        console.log(`[App] ✅ Contract ${contractId} loaded from server - Status: ${contractData.status}`);
+
+        // Save to local storage for offline access
+        saveContract(contractData);
+
         if (mountedRef.current) {
-          setError("Invalid Secure Link Data.");
+          setCurrentContractId(contractId);
           setIsInitializing(false);
+        }
+      } catch (error) {
+        console.error(`[App] ❌ Failed to load contract from server:`, error);
+
+        // Fallback: Try loading from local storage
+        const localContract = getContractById(contractId);
+        if (localContract) {
+          console.log(`[App] ⚠️ Using local cached contract`);
+          if (mountedRef.current) {
+            setCurrentContractId(contractId);
+            setIsInitializing(false);
+          }
+        } else {
+          if (mountedRef.current) {
+            setError("Unable to load contract. Please check your connection and try again.");
+            setConnectionFailed(true);
+            setIsInitializing(false);
+          }
         }
       }
     }
-    // OPTION 2: Hash Route (Local Refresh/History)
-    else if (window.location.hash.startsWith('#/contract/')) {
-      const id = window.location.hash.slice('#/contract/'.length);
-      const local = getContractById(id);
-      if (local) {
-        if (mountedRef.current) {
-          setCurrentContractId(id);
-          setIsInitializing(false);
-        }
-      } else {
-        if (mountedRef.current) {
-          setError("Contract not found locally.");
-          setIsInitializing(false);
-        }
-      }
-    }
-    // OPTION 3: Idle / No Params
+    // No contract ID in URL
     else {
       if (mountedRef.current) {
         setIsInitializing(false);
@@ -77,114 +122,6 @@ const App: React.FC = () => {
     }
   };
 
-
-  const processContractData = (data: any, id: string) => {
-    if (!mountedRef.current) return;
-
-    const vendorDetails: VendorDetails = {
-      // Exhibitor Info
-      exhibitorType: data.exhibitorType || '',
-      brands: Array.isArray(data.brands) ? data.brands : ((data.brandName || data.website || data.instagram) ? [{
-        brandName: data.brandName || 'Brand',
-        showroomName: data.showroomName,
-        website: data.website,
-        instagram: data.instagram
-      }] : []),
-      company: data.companyName || data.company || 'Vendor Co',
-
-      // Contacts
-      contacts: Array.isArray(data.contacts) ? data.contacts : [],
-
-      // Primary Contact (Legacy fields for single contact access if needed)
-      email: data.email || 'vendor@example.com',
-      address: data.address || '',
-
-      // Categories
-      categories: Array.isArray(data.categories) ? data.categories : [],
-      otherCategory: data.otherCategory || '',
-
-      // Booth & Fixtures
-      boothSize: data.finalBoothSize || data.boothSize || data.boothType || "1 Standard || 13' x 8' || (4 Fixtures)",
-      finalBoothSize: data.finalBoothSize,
-      customBoothSize: data.customBoothSize,
-      customBoothRequirements: data.customBoothRequirements,
-
-      // Multi-Fixture Support
-      selectedFixtures: data.selectedFixtures || [{ type: data.fixture || 'Display Counter (Large)', quantity: parseInt(data.fixtureQuantity) || 4 }],
-
-      // Legacy
-      fixture: data.fixture || 'Display Counter (Large)',
-      fixtureQuantity: parseInt(data.fixtureQuantity) || 4,
-
-      eventDate: data.eventDate || new Date().toISOString().split('T')[0],
-      specialRequirements: data.specialRequirements || 'None',
-    };
-
-    const existingContract = getContractById(id);
-
-    // Generate content if not exists
-    let content = existingContract?.content || '';
-    if (!content) {
-      const fixturesList = vendorDetails.selectedFixtures.map(f => `* ${f.type} (Qty: ${f.quantity})`).join('\n');
-      const cats = vendorDetails.categories.join(', ') + (vendorDetails.otherCategory ? ` (${vendorDetails.otherCategory})` : '');
-
-      content = `
-# EXHIBITION SERVICE AGREEMENT
-
-**Date:** ${new Date().toLocaleDateString()}
-
-## 1. AGREEMENT PARTIES
-This agreement is between **Event Organizer** and **${vendorDetails.company}** (hereinafter referred to as "Vendor").
-
-**Exhibitor Info:**
-* **Company:** ${vendorDetails.company}
-* **Brand:** ${vendorDetails.brands.map(b => b.brandName).join(', ')}
-* **Address:** ${vendorDetails.address}
-
-**Contact:**
-* **Name:** ${vendorDetails.contacts[0]?.name || 'N/A'}
-* **Title:** ${vendorDetails.contacts[0]?.title || ''}
-* **Email:** ${vendorDetails.contacts[0]?.email || 'N/A'}
-
-
-
-
-## 2. BOOTH ALLOCATION & FIXTURES
-The Vendor is allocated the following:
-* **Booth Size/Type:** ${vendorDetails.boothSize}
-${vendorDetails.customBoothRequirements ? `* **Custom Requirements:** ${vendorDetails.customBoothRequirements}\n` : ''}
-* **Categories:** ${cats}
-
-**Selected Fixtures:**
-${fixturesList}
-
-## 3. SPECIAL REQUIREMENTS
-${vendorDetails.specialRequirements}
-
-## 4. TERMS
-Standard terms and conditions apply. The Vendor agrees to indemnify the Organizer against all claims.
-          `.trim();
-    }
-
-    const newContract: Contract = {
-      id: id,
-      vendorDetails,
-      status: existingContract?.status || 'sent',
-      content,
-      createdAt: existingContract?.createdAt || Date.now(),
-      magicLink: window.location.href,
-      signedAt: existingContract?.signedAt,
-      signatureBase64: existingContract?.signatureBase64
-    };
-
-    saveContract(newContract);
-    setCurrentContractId(id);
-
-    if (!window.location.hash.includes(id)) {
-      window.history.replaceState({}, '', `?id=${id}#/contract/${id}`);
-    }
-    setIsInitializing(false);
-  };
 
   const navigate = (path: string) => {
     window.location.hash = path;
