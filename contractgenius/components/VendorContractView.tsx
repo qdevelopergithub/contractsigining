@@ -255,18 +255,20 @@ export const VendorContractView: React.FC<Props> = ({ contractId, navigate }) =>
                     The document has been finalized.
                 </p>
 
-                <div className="space-y-4 max-w-xs mx-auto">
-                    <button
-                        onClick={downloadPdf}
-                        className="w-full py-4 bg-indigo-600 text-white rounded-xl font-bold text-lg hover:bg-indigo-700 transition shadow-lg shadow-indigo-200 flex items-center justify-center group"
-                    >
-                        <Download className="mr-3 group-hover:scale-110 transition-transform" />
-                        Download PDF
-                    </button>
-                    <p className="text-xs text-gray-400 mt-4">
-                        Your copy is ready for download.
-                    </p>
-                </div>
+                {justSigned && (
+                    <div className="space-y-4 max-w-xs mx-auto">
+                        <button
+                            onClick={downloadPdf}
+                            className="w-full py-4 bg-indigo-600 text-white rounded-xl font-bold text-lg hover:bg-indigo-700 transition shadow-lg shadow-indigo-200 flex items-center justify-center group"
+                        >
+                            <Download className="mr-3 group-hover:scale-110 transition-transform" />
+                            Download PDF
+                        </button>
+                        <p className="text-xs text-gray-400 mt-4">
+                            Your copy is ready for download.
+                        </p>
+                    </div>
+                )}
             </div>
         )
     }

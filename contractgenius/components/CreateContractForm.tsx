@@ -205,9 +205,9 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
         } else {
           const digitsOnly = contact.phone.replace(/\D/g, '');
           if (!/^\d+$/.test(digitsOnly)) {
-            newErrors[`contactPhone_${idx}`] = "Contact # must contain only digits";
+            newErrors[`contactPhone_${idx}`] = "Contact must contain only digits";
           } else if (digitsOnly.length > 15) {
-            newErrors[`contactPhone_${idx}`] = "Contact # must be up to 15 digits";
+            newErrors[`contactPhone_${idx}`] = "Contact must be up to 15 digits";
           }
         }
       }
@@ -581,18 +581,21 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
                         {errors[`contactName_${idx}`] && <p className="text-red-500 text-xs mt-1">{errors[`contactName_${idx}`]}</p>}
                       </div>
                       <div>
-                        <label className={labelClass}>{idx === 0 ? 'Contact #' : 'Title'} {idx === 0 && <span className="text-red-500">*</span>}</label>
+                        <label className={labelClass}>{idx === 0 ? 'Contact' : 'Title'} {idx === 0 && <span className="text-red-500">*</span>}</label>
                         <div className="relative">
                           {idx === 0 ? <Phone className={iconClass} /> : <FileText className={iconClass} />}
                           <input
                             type="text"
+                            maxLength={idx === 0 ? 15 : undefined}
                             value={idx === 0 ? contact.phone : contact.title}
                             onChange={(e) => {
-                              handleContactChange(idx, idx === 0 ? 'phone' : 'title', e.target.value);
+                              const val = e.target.value;
+                              if (idx === 0 && !/^\d*$/.test(val.replace(/\D/g, ''))) return; // Only allow digits
+                              handleContactChange(idx, idx === 0 ? 'phone' : 'title', val);
                               if (idx === 0 && errors[`contactPhone_${idx}`]) setErrors(prev => ({ ...prev, [`contactPhone_${idx}`]: '' }));
                             }}
                             className={`${inputClass} ${idx === 0 && errors[`contactPhone_${0}`] ? 'border-red-500 ring-2 ring-red-100' : ''}`}
-                            placeholder={idx === 0 ? "+1 (555) 001-0011" : "Managing Director"}
+                            placeholder={idx === 0 ? "1234567890" : "Managing Director"}
                             id={idx === 0 ? `contactPhone_${idx}` : undefined}
                           />
                         </div>
