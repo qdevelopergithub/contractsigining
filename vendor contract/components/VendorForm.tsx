@@ -685,15 +685,6 @@ const VendorForm: React.FC<VendorFormProps> = ({
                             className="w-full pl-10 pr-14 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent"
                           >
                             {VALID_FIXTURES
-                              .filter(type => {
-                                if (type === FixtureType.ACCESSORY_SHELVES_STACKED) {
-                                  return totalQuota === 2;
-                                }
-                                if (type === FixtureType.FITTING_SCREEN) {
-                                  return totalQuota >= 6;
-                                }
-                                return true;
-                              })
                               .map((type) => (
                                 <option key={type} value={type}>{type}</option>
                               ))}
