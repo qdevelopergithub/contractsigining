@@ -113,6 +113,27 @@ export const generateSignedPDF = async (contract: Contract): Promise<Uint8Array>
     }
   }
 
+  // Organizer Signature Section
+  yPosition -= 60;
+  if (yPosition < 120) {
+    page = pdfDoc.addPage();
+    yPosition = page.getSize().height - margin - 40;
+  }
+
+  page.drawText('SIGNED BY ORGANIZER:', {
+    x: margin,
+    y: yPosition,
+    size: 12,
+    font: boldFont,
+  });
+
+  yPosition -= 20;
+  page.drawText('Name: CABANA Exhibition Organizing', { x: margin, y: yPosition, size: 10, font });
+  yPosition -= 15;
+  page.drawText('Signature: __________________________', { x: margin, y: yPosition, size: 10, font });
+  yPosition -= 15;
+  page.drawText(`Date: ${new Date().toLocaleDateString()}`, { x: margin, y: yPosition, size: 10, font });
+
   const pdfBytes = await pdfDoc.save();
   return pdfBytes;
 };

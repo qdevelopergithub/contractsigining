@@ -51,8 +51,10 @@ export const generateContractDraft = async (details: VendorDetails): Promise<str
   const furniture = calculateFurniture(details.selectedFixtures.reduce((sum, f) => sum + f.quantity, 0));
   const furnitureText = `${furniture.tables} Table(s) and ${furniture.chairs} Chair(s)`;
 
+  const categoriesList = details.categories?.map(c => c === 'Other' ? `Other (${details.otherCategory})` : c).join(', ') || 'General';
+
   const prompt = `
-    Generate a formal, legally binding "Exhibition Service Agreement" between **[Organizer Name]** and **${details.company}**.
+    Generate a formal, legally binding "Exhibition Service Agreement" between **CABANA Exhibition Organizing** and **${details.company}**.
 
     **Contract Data:**
     - Date: ${new Date().toLocaleDateString()}
@@ -71,13 +73,13 @@ ${validContactsList}
     - Fixtures Included:
 ${fixturesList}
     - Standard Furniture Allotment: ${furnitureText}
-    - Categories: ${details.categories?.join(', ') || 'General'}
+    - Categories: ${categoriesList}
     - Payment Method: ${details.paymentMode || 'Not Specified'}
     - Special Requirements: ${details.specialRequirements || 'None'}
     - Additional Notes/Requests: ${details.notes || 'None'}
 
     **Instructions for Output:**
-    1. **Parties Section**: Start with a formal declaration: "This Agreement is made on [Date] between [Organizer Name] ('Organizer') and ${details.company}, located at ${details.address} ('Vendor')."
+    1. **Parties Section**: Start with a formal declaration: "This Agreement is made on ${new Date().toLocaleDateString()} between CABANA Exhibition Organizing ('Organizer') and ${details.company}, located at ${details.address} ('Vendor')."
     2. **Exhibitor Info Section**: Create a distinct section titled "Exhibitor Information". List the **Exhibitor Type**, **Company Name**, and **Brands/Showroom** details here.
     3. **Contact Details Section**: Create a distinct section titled "Contact Details". List **ALL** contacts provided in the "Authorized Contacts" data above. Do NOT include any "N/A" or empty placeholder fields.
     4. **Scope Section**: Clearly list the Booth Package, Fixtures, and the **Standard Furniture Allotment** (${furnitureText}).

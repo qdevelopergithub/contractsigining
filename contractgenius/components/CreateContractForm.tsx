@@ -561,7 +561,7 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
                       </button>
                     )}
                     <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Contact {formData.contacts.length > 1 ? `#${idx + 1}` : ''}</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                       <div>
                         <label className={labelClass}>{idx === 0 ? 'Primary Contact Name' : 'Contact Name'} <span className="text-red-500">*</span></label>
                         <div className="relative">
@@ -581,44 +581,57 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
                         {errors[`contactName_${idx}`] && <p className="text-red-500 text-xs mt-1">{errors[`contactName_${idx}`]}</p>}
                       </div>
                       <div>
-                        <label className={labelClass}>{idx === 0 ? 'Contact' : 'Title'} {idx === 0 && <span className="text-red-500">*</span>}</label>
+                        <label className={labelClass}>Contact <span className="text-red-500">*</span></label>
                         <div className="relative">
-                          {idx === 0 ? <Phone className={iconClass} /> : <FileText className={iconClass} />}
+                          <Phone className={iconClass} />
                           <input
                             type="text"
-                            maxLength={idx === 0 ? 15 : undefined}
-                            value={idx === 0 ? contact.phone : contact.title}
+                            maxLength={15}
+                            value={contact.phone}
                             onChange={(e) => {
                               const val = e.target.value;
-                              if (idx === 0 && !/^\d*$/.test(val.replace(/\D/g, ''))) return; // Only allow digits
-                              handleContactChange(idx, idx === 0 ? 'phone' : 'title', val);
-                              if (idx === 0 && errors[`contactPhone_${idx}`]) setErrors(prev => ({ ...prev, [`contactPhone_${idx}`]: '' }));
+                              if (!/^\d*$/.test(val.replace(/\D/g, ''))) return; // Only allow digits
+                              handleContactChange(idx, 'phone', val);
+                              if (errors[`contactPhone_${idx}`]) setErrors(prev => ({ ...prev, [`contactPhone_${idx}`]: '' }));
                             }}
-                            className={`${inputClass} ${idx === 0 && errors[`contactPhone_${0}`] ? 'border-red-500 ring-2 ring-red-100' : ''}`}
-                            placeholder={idx === 0 ? "1234567890" : "Managing Director"}
-                            id={idx === 0 ? `contactPhone_${idx}` : undefined}
+                            className={`${inputClass} ${errors[`contactPhone_${idx}`] ? 'border-red-500 ring-2 ring-red-100' : ''}`}
+                            placeholder="1234567890"
+                            id={`contactPhone_${idx}`}
                           />
                         </div>
-                        {idx === 0 && errors[`contactPhone_${0}`] && <p className="text-red-500 text-xs mt-1">{errors[`contactPhone_${0}`]}</p>}
+                        {errors[`contactPhone_${idx}`] && <p className="text-red-500 text-xs mt-1">{errors[`contactPhone_${idx}`]}</p>}
                       </div>
-                      <div className="col-span-full">
-                        <label className={labelClass}>Email Address <span className="text-red-500">*</span></label>
+                      <div>
+                        <label className={labelClass}>Title</label>
                         <div className="relative">
-                          <Mail className={iconClass} />
+                          <FileText className={iconClass} />
                           <input
-                            type="email"
-                            value={contact.email}
-                            onChange={(e) => {
-                              handleContactChange(idx, 'email', e.target.value);
-                              if (errors[`contactEmail_${idx}`]) setErrors(prev => ({ ...prev, [`contactEmail_${idx}`]: '' }));
-                            }}
-                            className={`${inputClass} ${errors[`contactEmail_${idx}`] ? 'border-red-500 ring-2 ring-red-100' : ''}`}
-                            placeholder="john@company.com"
-                            id={`contactEmail_${idx}`}
+                            type="text"
+                            value={contact.title}
+                            onChange={(e) => handleContactChange(idx, 'title', e.target.value)}
+                            className={inputClass}
+                            placeholder="Managing Director"
                           />
                         </div>
-                        {errors[`contactEmail_${idx}`] && <p className="text-red-500 text-xs mt-1">{errors[`contactEmail_${idx}`]}</p>}
                       </div>
+                    </div>
+                    <div className="col-span-full">
+                      <label className={labelClass}>Email Address <span className="text-red-500">*</span></label>
+                      <div className="relative">
+                        <Mail className={iconClass} />
+                        <input
+                          type="email"
+                          value={contact.email}
+                          onChange={(e) => {
+                            handleContactChange(idx, 'email', e.target.value);
+                            if (errors[`contactEmail_${idx}`]) setErrors(prev => ({ ...prev, [`contactEmail_${idx}`]: '' }));
+                          }}
+                          className={`${inputClass} ${errors[`contactEmail_${idx}`] ? 'border-red-500 ring-2 ring-red-100' : ''}`}
+                          placeholder="john@company.com"
+                          id={`contactEmail_${idx}`}
+                        />
+                      </div>
+                      {errors[`contactEmail_${idx}`] && <p className="text-red-500 text-xs mt-1">{errors[`contactEmail_${idx}`]}</p>}
                     </div>
                   </div>
                 ))}

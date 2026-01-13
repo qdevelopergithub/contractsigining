@@ -173,8 +173,19 @@ export const VendorContractView: React.FC<Props> = ({ contractId, navigate }) =>
 
     const handleSign = async () => {
         if (!canvasRef.current || !contract) return;
-        setProcessing(true);
         try {
+            // Check if canvas is empty
+            const canvas = canvasRef.current;
+            const ctx = canvas.getContext('2d');
+            const data = ctx?.getImageData(0, 0, canvas.width, canvas.height).data;
+            const isCanvasEmpty = data ? !data.some(channel => channel !== 0) : true;
+
+            if (isCanvasEmpty) {
+                alert("Please provide a signature before confirming.");
+                setProcessing(false);
+                return;
+            }
+
             const signatureBase64 = canvasRef.current.toDataURL('image/png');
 
             // Call the backend API for signing, PDF generation, and Drive upload
@@ -201,11 +212,11 @@ export const VendorContractView: React.FC<Props> = ({ contractId, navigate }) =>
             const result = await response.json();
             console.log("Server response:", result);
 
-            // Update local state
+            // Update local state and show success screen immediately
+            setJustSigned(true);
             const updated = signContract(contractId, signatureBase64);
             if (updated) {
                 setContract(updated);
-                setJustSigned(true);
             }
         } catch (e: any) {
             console.error(e);

@@ -22,6 +22,7 @@ export interface VendorDetails {
   exhibitorType: string;
   brands: BrandInfo[];
   company: string;
+  name?: string;
 
   // Contacts
   contacts: ContactInfo[];

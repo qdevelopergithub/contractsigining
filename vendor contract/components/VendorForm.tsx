@@ -446,7 +446,7 @@ const VendorForm: React.FC<VendorFormProps> = ({
                     </button>
                   )}
                   <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Contact {data.contacts.length > 1 ? `#${idx + 1}` : ''}</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div>
                       <label className={labelClass}>{idx === 0 ? 'Primary Contact Name' : 'Contact Name'} <span className="text-red-500">*</span></label>
                       <div className="relative">
@@ -466,367 +466,384 @@ const VendorForm: React.FC<VendorFormProps> = ({
                       {errors[`contactName_${idx}`] && <p className="text-red-500 text-xs mt-1">{errors[`contactName_${idx}`]}</p>}
                     </div>
                     <div>
-                      <label className={labelClass}>{idx === 0 ? 'Contact' : 'Title'} {idx === 0 && <span className="text-red-500">*</span>}</label>
+                      <label className={labelClass}>Contact <span className="text-red-500">*</span></label>
                       <div className="relative">
-                        {idx === 0 ? <Phone className={iconClass} /> : <FileText className={iconClass} />}
+                        <Phone className={iconClass} />
                         <input
                           type="text"
-                          maxLength={idx === 0 ? 15 : undefined}
-                          value={idx === 0 ? contact.phone : contact.title}
+                          maxLength={15}
+                          value={contact.phone}
                           onChange={(e) => {
                             const val = e.target.value;
-                            if (idx === 0 && !/^\d*$/.test(val.replace(/\D/g, ''))) return; // Only allow digits
-                            handleContactChange(idx, idx === 0 ? 'phone' : 'title', val);
-                            if (idx === 0 && errors[`contactPhone_${idx}`]) setErrors(prev => ({ ...prev, [`contactPhone_${idx}`]: '' }));
+                            if (!/^\d*$/.test(val.replace(/\D/g, ''))) return; // Only allow digits
+                            handleContactChange(idx, 'phone', val);
+                            if (errors[`contactPhone_${idx}`]) setErrors(prev => ({ ...prev, [`contactPhone_${idx}`]: '' }));
                           }}
-                          className={`${inputClass} ${idx === 0 && errors[`contactPhone_${0}`] ? 'border-red-500 ring-1 ring-red-500' : ''}`}
-                          placeholder={idx === 0 ? "1234567890" : "Managing Director"}
-                          id={idx === 0 ? `contactPhone_${idx}` : undefined}
+                          className={`${inputClass} ${errors[`contactPhone_${idx}`] ? 'border-red-500 ring-1 ring-red-500' : ''}`}
+                          placeholder="1234567890"
+                          id={`contactPhone_${idx}`}
                         />
                       </div>
-                      {idx === 0 && errors[`contactPhone_${0}`] && <p className="text-red-500 text-xs mt-1">{errors[`contactPhone_${0}`]}</p>}
-                    </div>
-                    <div className="col-span-full">
-                      <label className={labelClass}>Email Address <span className="text-red-500">*</span></label>
-                      <div className="relative">
-                        <Mail className={iconClass} />
-                        <input
-                          type="email"
-                          value={contact.email}
-                          onChange={(e) => {
-                            handleContactChange(idx, 'email', e.target.value);
-                            if (errors[`contactEmail_${idx}`]) setErrors(prev => ({ ...prev, [`contactEmail_${idx}`]: '' }));
-                          }}
-                          className={`${inputClass} ${errors[`contactEmail_${idx}`] ? 'border-red-500 ring-1 ring-red-500' : ''}`}
-                          placeholder="john@company.com"
-                          id={`contactEmail_${idx}`}
-                        />
-                      </div>
-                      {errors[`contactEmail_${idx}`] && <p className="text-red-500 text-xs mt-1">{errors[`contactEmail_${idx}`]}</p>}
-                    </div>
-                  </div>
-                </div>
-              ))}
-
-              <button
-                onClick={addContactRow}
-                className="w-full py-2 border-2 border-dashed border-slate-300 rounded-lg text-slate-500 text-sm font-medium hover:border-accent hover:text-accent transition-all flex items-center justify-center gap-2"
-              >
-                <Plus className="w-4 h-4" />
-                Add Another Contact
-              </button>
-
-              <div className="col-span-full">
-                <label className={labelClass}>Full Mailing Address <span className="text-red-500">*</span></label>
-                <div className="relative">
-                  <MapPin className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
-                  <textarea
-                    name="address"
-                    value={data.address}
-                    onChange={(e) => {
-                      handleChange('address', e.target.value);
-                      if (errors.address) setErrors(prev => ({ ...prev, address: '' }));
-                    }}
-                    className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent outline-none transition-all min-h-[100px] ${errors.address ? 'border-red-500 ring-1 ring-red-500' : 'border-slate-300'}`}
-                    placeholder="Street Address, City, State, ZIP, Country"
-                    required
-                    id="address"
-                  />
-                </div>
-                {errors.address && <p className="text-red-500 text-xs mt-1 font-normal ml-1">{errors.address}</p>}
-              </div>
-            </div>
-          </section>
-
-          {/* STEP 3: Categories */}
-          <section className="bg-white p-6 md:p-8 rounded-xl shadow-lg border border-slate-100">
-            <h2 className="text-xl font-bold text-slate-900 mb-6 flex items-center gap-2 border-b pb-4">
-              <CheckSquare className="w-5 h-5 text-accent" />
-              Categories Being Shown at Cabana
-            </h2>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-6">
-              {CATEGORY_OPTIONS.map((cat) => (
-                <label key={cat} className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-slate-50 transition-colors">
-                  <input
-                    type="checkbox"
-                    checked={data.categories.includes(cat)}
-                    onChange={() => toggleCategory(cat)}
-                    className="w-4 h-4 text-accent border-slate-300 rounded focus:ring-accent"
-                  />
-                  <span className="text-sm text-slate-700">{cat}</span>
-                </label>
-              ))}
-              <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-slate-50 transition-colors col-span-full sm:col-span-2">
-                <input
-                  type="checkbox"
-                  checked={data.categories.includes('Other')}
-                  onChange={() => toggleCategory('Other')}
-                  className="w-4 h-4 text-accent border-slate-300 rounded focus:ring-accent"
-                />
-                <span className="text-sm text-slate-700 mr-2">Other:</span>
-                {data.categories.includes('Other') && (
-                  <input
-                    type="text"
-                    value={data.otherCategory}
-                    onChange={(e) => handleChange('otherCategory', e.target.value)}
-                    className="flex-1 px-2 py-1 border-b border-slate-300 outline-none focus:border-accent bg-transparent text-sm"
-                    placeholder="Specify other category"
-                  />
-                )}
-              </label>
-            </div>
-          </section>
-
-          {/* Booth & Fixtures */}
-          <section className="bg-white p-6 md:p-8 rounded-xl shadow-lg border border-slate-100">
-            <h2 className="text-xl font-bold text-slate-900 mb-6 flex items-center gap-2 border-b pb-4">
-              <LayoutGrid className="w-5 h-5 text-accent" />
-              Booth & Fixture Selection
-            </h2>
-
-            <div className="space-y-6">
-              <div>
-                <label className={labelClass}>Booth Size</label>
-                <div className="relative">
-                  <LayoutGrid className={iconClass} />
-                  <select
-                    value={data.boothSize}
-                    onChange={(e) => handleChange('boothSize', e.target.value as BoothSize)}
-                    className={inputClass}
-                  >
-                    {Object.values(BoothSize).map((size) => (
-                      <option key={size} value={size}>
-                        {size}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {data.boothSize === BoothSize.CUSTOM_LARGE && (
-                  <div className="mt-4 p-4 bg-blue-50 border border-blue-100 rounded-lg space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
-                    <div className="grid grid-cols-1 gap-4">
-                      <div>
-                        <label className={labelClass}>Fixture Count (Number)</label>
-                        <input
-                          type="text"
-                          value={data.customBoothSize || ''}
-                          onChange={(e) => {
-                            const val = e.target.value.replace(/[^0-9.]/g, '');
-                            handleChange('customBoothSize', val);
-                          }}
-                          className={inputClass}
-                          maxLength={4}
-                          placeholder="e.g. 4"
-                        />
-                      </div>
+                      {errors[`contactPhone_${idx}`] && <p className="text-red-500 text-xs mt-1">{errors[`contactPhone_${idx}`]}</p>}
                     </div>
                     <div>
-                      <label className={labelClass}>Contract Booth Entry (Professional Display)</label>
+                      <label className={labelClass}>Title</label>
+                      <div className="relative">
+                        <FileText className={iconClass} />
+                        <input
+                          type="text"
+                          value={contact.title}
+                          onChange={(e) => handleContactChange(idx, 'title', e.target.value)}
+                          className={inputClass}
+                          placeholder="Managing Director"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="col-span-full">
+                    <label className={labelClass}>Email Address <span className="text-red-500">*</span></label>
+                    <div className="relative">
+                      <Mail className={iconClass} />
                       <input
-                        type="text"
-                        value={data.finalBoothSize}
-                        readOnly
-                        className="w-full px-4 py-2 border border-blue-200 rounded-lg bg-white/50 text-xs font-mono text-blue-700"
+                        type="email"
+                        value={contact.email}
+                        onChange={(e) => {
+                          handleContactChange(idx, 'email', e.target.value);
+                          if (errors[`contactEmail_${idx}`]) setErrors(prev => ({ ...prev, [`contactEmail_${idx}`]: '' }));
+                        }}
+                        className={`${inputClass} ${errors[`contactEmail_${idx}`] ? 'border-red-500 ring-1 ring-red-500' : ''}`}
+                        placeholder="john@company.com"
+                        id={`contactEmail_${idx}`}
                       />
-                      <p className={helperClass}>Equation: {data.customBoothSize || '0'} Fixtures / 4 = {(parseFloat(data.customBoothSize || '0') / 4).toFixed(1)} Booths</p>
                     </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="p-5 bg-slate-50 rounded-xl border border-slate-200 space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Fixture Allocation</h3>
-                  <div className={`text-xs font-bold px-3 py-1 rounded-full ${currentTotalFixtures > totalQuota ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`}>
-                    {currentTotalFixtures} / {totalQuota} Fixtures Used
+                    {errors[`contactEmail_${idx}`] && <p className="text-red-500 text-xs mt-1">{errors[`contactEmail_${idx}`]}</p>}
                   </div>
                 </div>
-
-                <div className="p-3 bg-indigo-50 border border-indigo-100 rounded-lg flex items-center justify-between text-indigo-700">
-                  <div className="flex items-center gap-2">
-                    <CheckSquare className="w-4 h-4" />
-                    <span className="text-xs font-bold uppercase">Standard Furniture Allotment:</span>
-                  </div>
-                  <div className="text-xs font-mono font-bold bg-white px-2 py-1 rounded shadow-sm">
-                    {calculateFurniture(totalQuota).tables} Table(s) & {calculateFurniture(totalQuota).chairs} Chairs
-                  </div>
                 </div>
+              ))}
 
-                <div className="space-y-4">
-                  {data.selectedFixtures.map((fix, idx) => (
-                    <div key={idx} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-start bg-white p-4 rounded-lg border border-slate-100 shadow-sm relative group">
-                      <div className="md:col-span-7">
-                        <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Fixture Type</label>
-                        <div className="relative">
-                          <Lamp className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
-                          <select
-                            value={fix.type}
-                            onChange={(e) => handleFixtureChange(idx, 'type', e.target.value as FixtureType)}
-                            className="w-full pl-10 pr-14 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent"
-                          >
-                            {VALID_FIXTURES
-                              .filter(type => {
-                                if (type === FixtureType.ACCESSORY_SHELVES_STACKED) {
-                                  return totalQuota === 2;
-                                }
-                                if (type === FixtureType.FITTING_SCREEN) {
-                                  return totalQuota >= 6;
-                                }
-                                return true;
-                              })
-                              .map((type) => (
-                                <option key={type} value={type}>{type}</option>
-                              ))}
-                          </select>
-                          {FIXTURE_IMAGES[fix.type] && (
-                            <button
-                              type="button"
-                              onClick={() => setPreviewImage(FIXTURE_IMAGES[fix.type])}
-                              className="absolute right-10 top-1/2 -translate-y-1/2 p-2 text-accent hover:bg-blue-50 rounded-full transition-all"
-                              title="Preview Image"
-                            >
-                              <Eye className="w-4 h-4" />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                      <div className="md:col-span-3">
-                        <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Quantity</label>
-                        <div className="relative">
-                          <ShoppingCart className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
-
-                          <input
-                            type="number"
-                            min="1"
-                            value={fix.quantity}
-                            onChange={(e) => handleFixtureChange(idx, 'quantity', parseInt(e.target.value) || 0)}
-                            max={999}
-                            onInput={(e) => {
-                              if (e.currentTarget.value.length > 3) {
-                                e.currentTarget.value = e.currentTarget.value.slice(0, 3);
-                              }
-                            }}
-                            className={`w-full pl-10 pr-4 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent ${errors[`fixtureQty_${idx}`] ? 'border-red-500 ring-1 ring-red-500' : 'border-slate-200'}`}
-                            id={`fixtureQty_${idx}`}
-                          />
-                        </div>
-                        {errors[`fixtureQty_${idx}`] && <p className="text-red-500 text-[10px] mt-1 ml-1">{errors[`fixtureQty_${idx}`]}</p>}
-                      </div>
-                      <div className="md:col-span-2 flex gap-2">
-                        {data.selectedFixtures.length > 1 && (
-                          <button
-                            onClick={() => removeFixtureRow(idx)}
-                            className="p-2 text-slate-400 hover:text-red-500 transition-colors"
-                            title="Remove"
-                          >
-                            <Trash2 className="w-5 h-5" />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <button
-                  onClick={addFixtureRow}
-                  className="w-full py-2 border-2 border-dashed border-slate-300 rounded-lg text-slate-500 text-sm font-medium hover:border-accent hover:text-accent transition-all flex items-center justify-center gap-2"
-                >
-                  <Plus className="w-4 h-4" />
-                  Add Another Fixture Type
-                </button>
-
-                {currentTotalFixtures > totalQuota && (
-                  <div className="p-3 bg-red-50 border border-red-100 rounded-lg text-red-600 text-xs flex items-start gap-2 animate-pulse">
-                    <span className="font-bold">(!)</span>
-                    <span>You have exceeded the standard fixture quota ({totalQuota}). Extra charges may apply for {currentTotalFixtures - totalQuota} additional fixtures.</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Additional Notes */}
-              <div className="pt-4 border-t border-slate-100">
-                <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider mb-4 flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-accent" />
-                  Additional Requests & Special Notes
-                </h3>
-                <textarea
-                  value={data.notes || ''}
-                  onChange={(e) => handleChange('notes', e.target.value)}
-                  className="w-full p-4 border border-slate-300 rounded-xl focus:ring-2 focus:ring-accent focus:border-transparent outline-none transition-all min-h-[100px] text-sm"
-                  placeholder="PLEASE NOTE ANY REQUESTS YOU MAY HAVE FOR YOUR BOOTH (ADJACENCIES, FIXTURES, ETC.) LIST ANY SHOWROOMS/ OR AGENCIES YOU NEED TO BE PLACED NEAR. WE WILL TRY OUR BEST TO ACCOMODATE :"
-                />
-                <p className="text-[10px] text-slate-400 mt-1">These details will be included in your contract draft.</p>
-              </div>
-
-              <div>
-                <label className={labelClass}>Payment Mode</label>
-                <div className="relative">
-                  <CreditCard className={iconClass} />
-                  <select
-                    value={data.paymentMode}
-                    onChange={(e) => handleChange('paymentMode', e.target.value as PaymentMode)}
-                    className={inputClass}
-                  >
-                    {Object.values(PaymentMode).map((mode) => (
-                      <option key={mode} value={mode}>{mode}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <button
-            onClick={handleFormSubmit}
-            disabled={isProcessing}
-            className={`w-full py-4 px-6 rounded-xl text-white font-bold shadow-lg transition-all flex items-center justify-center gap-2 text-lg
-          ${isProcessing
-                ? 'bg-slate-400 cursor-not-allowed'
-                : 'bg-accent hover:bg-blue-700 hover:shadow-xl active:transform active:scale-95'
-              }`}
-          >
-            {isProcessing ? (
-              <>
-                <Loader2 className="animate-spin h-6 w-6 text-white" />
-                <span>{processingText}</span>
-              </>
-            ) : (
-              <>
-                <Send className="w-6 h-6" />
-                <span>SUBMIT APPLICATION</span>
-              </>
-            )}
-          </button>
-        </>
-      )}
-      {/* Fixture Preview Modal */}
-      {previewImage && (
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200"
-          onClick={() => setPreviewImage(null)}
-        >
-          <div
-            className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden relative animate-in zoom-in-95 duration-200"
-            onClick={e => e.stopPropagation()}
-          >
             <button
-              onClick={() => setPreviewImage(null)}
-              className="absolute top-4 right-4 p-2 bg-white/80 hover:bg-white rounded-full text-slate-500 hover:text-red-500 shadow-sm transition-all z-10"
+              onClick={addContactRow}
+              className="w-full py-2 border-2 border-dashed border-slate-300 rounded-lg text-slate-500 text-sm font-medium hover:border-accent hover:text-accent transition-all flex items-center justify-center gap-2"
             >
-              <X className="w-5 h-5" />
+              <Plus className="w-4 h-4" />
+              Add Another Contact
             </button>
-            <div className="p-1 bg-slate-50">
-              <img src={previewImage} alt="Fixture Preview" className="w-full h-auto object-contain max-h-[70vh] rounded-xl" />
+
+            <div className="col-span-full">
+              <label className={labelClass}>Full Mailing Address <span className="text-red-500">*</span></label>
+              <div className="relative">
+                <MapPin className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
+                <textarea
+                  name="address"
+                  value={data.address}
+                  onChange={(e) => {
+                    handleChange('address', e.target.value);
+                    if (errors.address) setErrors(prev => ({ ...prev, address: '' }));
+                  }}
+                  className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent outline-none transition-all min-h-[100px] ${errors.address ? 'border-red-500 ring-1 ring-red-500' : 'border-slate-300'}`}
+                  placeholder="Street Address, City, State, ZIP, Country"
+                  required
+                  id="address"
+                />
+              </div>
+              {errors.address && <p className="text-red-500 text-xs mt-1 font-normal ml-1">{errors.address}</p>}
             </div>
-            <div className="p-4 text-center border-t">
-              <p className="text-sm font-bold text-slate-900">Fixture Reference Image</p>
-              <p className="text-xs text-slate-500">Standard design configuration</p>
+          </div>
+        </section>
+
+      {/* STEP 3: Categories */}
+      <section className="bg-white p-6 md:p-8 rounded-xl shadow-lg border border-slate-100">
+        <h2 className="text-xl font-bold text-slate-900 mb-6 flex items-center gap-2 border-b pb-4">
+          <CheckSquare className="w-5 h-5 text-accent" />
+          Categories Being Shown at Cabana
+        </h2>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+          {CATEGORY_OPTIONS.map((cat) => (
+            <label key={cat} className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-slate-50 transition-colors">
+              <input
+                type="checkbox"
+                checked={data.categories.includes(cat)}
+                onChange={() => toggleCategory(cat)}
+                className="w-4 h-4 text-accent border-slate-300 rounded focus:ring-accent"
+              />
+              <span className="text-sm text-slate-700">{cat}</span>
+            </label>
+          ))}
+          <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-slate-50 transition-colors col-span-full sm:col-span-2">
+            <input
+              type="checkbox"
+              checked={data.categories.includes('Other')}
+              onChange={() => toggleCategory('Other')}
+              className="w-4 h-4 text-accent border-slate-300 rounded focus:ring-accent"
+            />
+            <span className="text-sm text-slate-700 mr-2">Other:</span>
+            {data.categories.includes('Other') && (
+              <input
+                type="text"
+                value={data.otherCategory}
+                onChange={(e) => handleChange('otherCategory', e.target.value)}
+                className="flex-1 px-2 py-1 border-b border-slate-300 outline-none focus:border-accent bg-transparent text-sm"
+                placeholder="Specify other category"
+              />
+            )}
+          </label>
+        </div>
+      </section>
+
+      {/* Booth & Fixtures */}
+      <section className="bg-white p-6 md:p-8 rounded-xl shadow-lg border border-slate-100">
+        <h2 className="text-xl font-bold text-slate-900 mb-6 flex items-center gap-2 border-b pb-4">
+          <LayoutGrid className="w-5 h-5 text-accent" />
+          Booth & Fixture Selection
+        </h2>
+
+        <div className="space-y-6">
+          <div>
+            <label className={labelClass}>Booth Size</label>
+            <div className="relative">
+              <LayoutGrid className={iconClass} />
+              <select
+                value={data.boothSize}
+                onChange={(e) => handleChange('boothSize', e.target.value as BoothSize)}
+                className={inputClass}
+              >
+                {Object.values(BoothSize).map((size) => (
+                  <option key={size} value={size}>
+                    {size}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {data.boothSize === BoothSize.CUSTOM_LARGE && (
+              <div className="mt-4 p-4 bg-blue-50 border border-blue-100 rounded-lg space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                <div className="grid grid-cols-1 gap-4">
+                  <div>
+                    <label className={labelClass}>Fixture Count (Number)</label>
+                    <input
+                      type="text"
+                      value={data.customBoothSize || ''}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/[^0-9.]/g, '');
+                        handleChange('customBoothSize', val);
+                      }}
+                      className={inputClass}
+                      maxLength={4}
+                      placeholder="e.g. 4"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className={labelClass}>Contract Booth Entry (Professional Display)</label>
+                  <input
+                    type="text"
+                    value={data.finalBoothSize}
+                    readOnly
+                    className="w-full px-4 py-2 border border-blue-200 rounded-lg bg-white/50 text-xs font-mono text-blue-700"
+                  />
+                  <p className={helperClass}>Equation: {data.customBoothSize || '0'} Fixtures / 4 = {(parseFloat(data.customBoothSize || '0') / 4).toFixed(1)} Booths</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="p-5 bg-slate-50 rounded-xl border border-slate-200 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Fixture Allocation</h3>
+              <div className={`text-xs font-bold px-3 py-1 rounded-full ${currentTotalFixtures > totalQuota ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`}>
+                {currentTotalFixtures} / {totalQuota} Fixtures Used
+              </div>
+            </div>
+
+            <div className="p-3 bg-indigo-50 border border-indigo-100 rounded-lg flex items-center justify-between text-indigo-700">
+              <div className="flex items-center gap-2">
+                <CheckSquare className="w-4 h-4" />
+                <span className="text-xs font-bold uppercase">Standard Furniture Allotment:</span>
+              </div>
+              <div className="text-xs font-mono font-bold bg-white px-2 py-1 rounded shadow-sm">
+                {calculateFurniture(totalQuota).tables} Table(s) & {calculateFurniture(totalQuota).chairs} Chairs
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              {data.selectedFixtures.map((fix, idx) => (
+                <div key={idx} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-start bg-white p-4 rounded-lg border border-slate-100 shadow-sm relative group">
+                  <div className="md:col-span-7">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Fixture Type</label>
+                    <div className="relative">
+                      <Lamp className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
+                      <select
+                        value={fix.type}
+                        onChange={(e) => handleFixtureChange(idx, 'type', e.target.value as FixtureType)}
+                        className="w-full pl-10 pr-14 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent"
+                      >
+                        {VALID_FIXTURES
+                          .filter(type => {
+                            if (type === FixtureType.ACCESSORY_SHELVES_STACKED) {
+                              return totalQuota === 2;
+                            }
+                            if (type === FixtureType.FITTING_SCREEN) {
+                              return totalQuota >= 6;
+                            }
+                            return true;
+                          })
+                          .map((type) => (
+                            <option key={type} value={type}>{type}</option>
+                          ))}
+                      </select>
+                      {FIXTURE_IMAGES[fix.type] && (
+                        <button
+                          type="button"
+                          onClick={() => setPreviewImage(FIXTURE_IMAGES[fix.type])}
+                          className="absolute right-10 top-1/2 -translate-y-1/2 p-2 text-accent hover:bg-blue-50 rounded-full transition-all"
+                          title="Preview Image"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <div className="md:col-span-3">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Quantity</label>
+                    <div className="relative">
+                      <ShoppingCart className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
+
+                      <input
+                        type="number"
+                        min="1"
+                        value={fix.quantity}
+                        onChange={(e) => handleFixtureChange(idx, 'quantity', parseInt(e.target.value) || 0)}
+                        max={999}
+                        onInput={(e) => {
+                          if (e.currentTarget.value.length > 3) {
+                            e.currentTarget.value = e.currentTarget.value.slice(0, 3);
+                          }
+                        }}
+                        className={`w-full pl-10 pr-4 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent ${errors[`fixtureQty_${idx}`] ? 'border-red-500 ring-1 ring-red-500' : 'border-slate-200'}`}
+                        id={`fixtureQty_${idx}`}
+                      />
+                    </div>
+                    {errors[`fixtureQty_${idx}`] && <p className="text-red-500 text-[10px] mt-1 ml-1">{errors[`fixtureQty_${idx}`]}</p>}
+                  </div>
+                  <div className="md:col-span-2 flex gap-2">
+                    {data.selectedFixtures.length > 1 && (
+                      <button
+                        onClick={() => removeFixtureRow(idx)}
+                        className="p-2 text-slate-400 hover:text-red-500 transition-colors"
+                        title="Remove"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <button
+              onClick={addFixtureRow}
+              className="w-full py-2 border-2 border-dashed border-slate-300 rounded-lg text-slate-500 text-sm font-medium hover:border-accent hover:text-accent transition-all flex items-center justify-center gap-2"
+            >
+              <Plus className="w-4 h-4" />
+              Add Another Fixture Type
+            </button>
+
+            {currentTotalFixtures > totalQuota && (
+              <div className="p-3 bg-red-50 border border-red-100 rounded-lg text-red-600 text-xs flex items-start gap-2 animate-pulse">
+                <span className="font-bold">(!)</span>
+                <span>You have exceeded the standard fixture quota ({totalQuota}). Extra charges may apply for {currentTotalFixtures - totalQuota} additional fixtures.</span>
+              </div>
+            )}
+          </div>
+
+          {/* Additional Notes */}
+          <div className="pt-4 border-t border-slate-100">
+            <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider mb-4 flex items-center gap-2">
+              <FileText className="w-4 h-4 text-accent" />
+              Additional Requests & Special Notes
+            </h3>
+            <textarea
+              value={data.notes || ''}
+              onChange={(e) => handleChange('notes', e.target.value)}
+              className="w-full p-4 border border-slate-300 rounded-xl focus:ring-2 focus:ring-accent focus:border-transparent outline-none transition-all min-h-[100px] text-sm"
+              placeholder="PLEASE NOTE ANY REQUESTS YOU MAY HAVE FOR YOUR BOOTH (ADJACENCIES, FIXTURES, ETC.) LIST ANY SHOWROOMS/ OR AGENCIES YOU NEED TO BE PLACED NEAR. WE WILL TRY OUR BEST TO ACCOMODATE :"
+            />
+            <p className="text-[10px] text-slate-400 mt-1">These details will be included in your contract draft.</p>
+          </div>
+
+          <div>
+            <label className={labelClass}>Payment Mode</label>
+            <div className="relative">
+              <CreditCard className={iconClass} />
+              <select
+                value={data.paymentMode}
+                onChange={(e) => handleChange('paymentMode', e.target.value as PaymentMode)}
+                className={inputClass}
+              >
+                {Object.values(PaymentMode).map((mode) => (
+                  <option key={mode} value={mode}>{mode}</option>
+                ))}
+              </select>
             </div>
           </div>
         </div>
-      )}
+      </section>
+
+      <button
+        onClick={handleFormSubmit}
+        disabled={isProcessing}
+        className={`w-full py-4 px-6 rounded-xl text-white font-bold shadow-lg transition-all flex items-center justify-center gap-2 text-lg
+          ${isProcessing
+            ? 'bg-slate-400 cursor-not-allowed'
+            : 'bg-accent hover:bg-blue-700 hover:shadow-xl active:transform active:scale-95'
+          }`}
+      >
+        {isProcessing ? (
+          <>
+            <Loader2 className="animate-spin h-6 w-6 text-white" />
+            <span>{processingText}</span>
+          </>
+        ) : (
+          <>
+            <Send className="w-6 h-6" />
+            <span>SUBMIT APPLICATION</span>
+          </>
+        )}
+      </button>
+    </>
+  )
+}
+{/* Fixture Preview Modal */ }
+{
+  previewImage && (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200"
+      onClick={() => setPreviewImage(null)}
+    >
+      <div
+        className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden relative animate-in zoom-in-95 duration-200"
+        onClick={e => e.stopPropagation()}
+      >
+        <button
+          onClick={() => setPreviewImage(null)}
+          className="absolute top-4 right-4 p-2 bg-white/80 hover:bg-white rounded-full text-slate-500 hover:text-red-500 shadow-sm transition-all z-10"
+        >
+          <X className="w-5 h-5" />
+        </button>
+        <div className="p-1 bg-slate-50">
+          <img src={previewImage} alt="Fixture Preview" className="w-full h-auto object-contain max-h-[70vh] rounded-xl" />
+        </div>
+        <div className="p-4 text-center border-t">
+          <p className="text-sm font-bold text-slate-900">Fixture Reference Image</p>
+          <p className="text-xs text-slate-500">Standard design configuration</p>
+        </div>
+      </div>
     </div>
+  )
+}
+    </div >
   );
 };
 
