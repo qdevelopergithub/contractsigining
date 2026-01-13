@@ -58,7 +58,7 @@ ${validContactsList}
 
 2. BOOTH ALLOCATION & FIXTURES
 The Vendor is allocated the following:
-Booth Size/Type: ${details.finalBoothSize || details.boothSize || "Standard"}
+Booth Size/Type: ${details.finalBoothSize || details.boothSize || "Standard"}${details.customBoothSize ? ` (Custom Size: ${details.customBoothSize})` : ''}
 Categories: ${categoriesList}
 
 Standard Furniture Allotment:
@@ -67,8 +67,11 @@ ${furnitureText}
 Selected Fixtures:
 ${fixturesList}
 
-3. SPECIAL REQUIREMENTS & NOTES
-${details.notes || "None"}
+3. SPECIAL REQUIREMENTS & LOGISTICS
+Booth Customizations: ${details.customBoothRequirements || "None"}
+Special Requirements: ${details.specialRequirements || "None"}
+Additional Notes: ${details.notes || "None"}
+Payment Method: ${details.paymentMode || "Credit Card"}
 
 4. TERMS
 Standard terms and conditions apply. The Vendor agrees to maintain appropriate insurance and indemnifies the Organizer against all claims, damages, or losses arising from their participation in the exhibition. This agreement is governed by the laws of New York State.
