@@ -775,6 +775,10 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
                           onChange={(e) => handleFixtureChange(idx, 'type', e.target.value)}
                         >
                           {VALID_FIXTURES
+                            .filter(type => {
+                              if (type === 'Fitting Screen') return totalQuota >= 6;
+                              return true;
+                            })
                             .map(type => <option key={type} value={type}>{type}</option>)}
                         </select>
                         {FIXTURE_IMAGES[fix.type] && (
