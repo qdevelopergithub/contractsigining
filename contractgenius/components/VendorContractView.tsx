@@ -173,6 +173,7 @@ export const VendorContractView: React.FC<Props> = ({ contractId, navigate }) =>
 
     const handleSign = async () => {
         if (!canvasRef.current || !contract) return;
+        setProcessing(true);
         try {
             // Check if canvas is empty
             const canvas = canvasRef.current;
@@ -360,10 +361,10 @@ export const VendorContractView: React.FC<Props> = ({ contractId, navigate }) =>
                                 <button
                                     onClick={handleSign}
                                     disabled={processing}
-                                    className="flex-1 bg-indigo-600 text-white px-4 py-3 rounded-lg hover:bg-indigo-700 shadow-md flex justify-center items-center space-x-2 text-sm font-bold transition-all active:scale-95"
+                                    className="flex-1 bg-indigo-600 text-white px-4 py-3 rounded-lg hover:bg-indigo-700 hover:shadow-lg active:bg-indigo-800 shadow-md flex justify-center items-center space-x-2 text-sm font-bold transition-all active:scale-[0.98] disabled:bg-gray-400 disabled:cursor-not-allowed"
                                 >
                                     {processing ? <Loader2 className="animate-spin" size={16} /> : <Check size={16} />}
-                                    <span>Confirm & Sign</span>
+                                    <span>{processing ? 'Signing...' : 'Confirm & Sign'}</span>
                                 </button>
                             </div>
                             <p className="text-[10px] text-gray-400 text-center leading-tight pt-2">
