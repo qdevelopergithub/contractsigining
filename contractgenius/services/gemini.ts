@@ -51,16 +51,17 @@ export const generateContractDraft = async (details: VendorDetails): Promise<str
   const furniture = calculateFurniture(details.selectedFixtures.reduce((sum, f) => sum + f.quantity, 0));
   const furnitureText = `${furniture.tables} Table(s) and ${furniture.chairs} Chair(s)`;
 
-  const categoriesList = details.categories?.map(c => c === 'Other' ? `Other: ${details.otherCategory || 'Not detailed'}` : c).join(', ') || 'N/A';
+  const categoriesList = details.categories?.map(c => c === 'Other' ? `Other [SPECIFIC CATEGORY: ${details.otherCategory || 'Miscellaneous'}]` : c).join(', ') || 'N/A';
 
   const prompt = `
     TASK: GENERATE A PROFESSIONAL EXHIBITION SERVICE AGREEMENT.
     
-    CRITICAL RULES:
-    1. DO NOT INCLUDE ANY SIGNATURE LINES OR EXECUTION BLOCKS (E.G., NO "Signed: _______").
-    2. DO NOT USE ANY PLACEHOLDERS OR SQUARE BRACKETS (E.G., NO "[Date]").
-    3. INCLUDE EVERY SECTION BELOW. IF DATA IS MISSING, STATE "N/A" INSTEAD OF OMITTING THE FIELD.
-    4. USE THE EXACT DATA PROVIDED.
+    CRITICAL RULES (NON-NEGOTIABLE):
+    1. NEVER OUTPUT UNDERSCORES IN THE TEXT (E.G., NO "______").
+    2. NEVER OUTPUT WORDS LIKE "Signature:", "Signed:", or "Date:" IN A SIGNATORY CONTEXT.
+    3. THE TEXT MUST END WITH THE STATEMENT "*End of Document Text*". NOTHING FOLLOWS THIS.
+    4. PRESERVE THE FULL CATEGORY DESCRIPTION: If a category says "Other [SPECIFIC CATEGORY: ...]", output the entire bracketed text.
+    5. NO PLACEHOLDERS: Do not use square brackets like "[Insert Date]".
 
     ORGANIZER (CABANA):
     - Company: CABANA Exhibition Organizing
@@ -135,7 +136,17 @@ export const generateContractDraft = async (details: VendorDetails): Promise<str
       model: "llama-3.3-70b-versatile",
     });
 
-    return completion.choices[0]?.message?.content || "Error: Could not generate contract text.";
+    let content = completion.choices[0]?.message?.content || "Error: Could not generate contract text.";
+
+    // Post-processing to strip hallucinated signature blocks
+    // This regex looks for patterns like --- followed by "Exhibitor's Signature" and underscores
+    content = content.replace(/---[\s\S]*?(Exhibitor|Signature|Date):?\s*_{3,}/gi, '');
+    // Also remove any stray signature lines at the end
+    content = content.replace(/(Signature|Date|Signed|Name):?\s*_{3,}/gi, '');
+    // Remove triple dashes at the end if they preceded a signature block
+    content = content.replace(/\s*---\s*$/g, '');
+
+    return content;
   } catch (error) {
     console.error("GROQ API Error:", error);
     return "Error: Failed to connect to AI service. Please check your API key.";
