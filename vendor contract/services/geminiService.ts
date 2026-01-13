@@ -1,16 +1,7 @@
-import Groq from "groq-sdk";
 import { VendorFormData } from "../types";
 
-const groq = new Groq({
-  apiKey: process.env.VITE_GROQ_API_KEY || "",
-  dangerouslyAllowBrowser: true // Required since we are running client-side
-});
-
 export const generateVendorContract = async (data: VendorFormData): Promise<string> => {
-  // Use a capable model on Groq
-  const modelId = "llama-3.3-70b-versatile";
-
-  // Filter and format Brands based on Exhibitor Type
+  // 1. Format Brands
   const brandsList = data.brands
     .filter(b => b.brandName && b.brandName.trim() !== '')
     .map(b => {
@@ -22,79 +13,73 @@ export const generateVendorContract = async (data: VendorFormData): Promise<stri
       if (b.instagram) info += `, IG: ${b.instagram}`;
       return info;
     })
-    .join('\n');
+    .join('\n') || '- N/A';
 
-  // Filter Contacts - only valid ones
-  const validContacts = data.contacts.filter(c => c.name && c.name.trim() !== '' && c.name !== 'N/A');
-  // Create a formatted list of ALL valid contacts for the contract body
-  const validContactsList = validContacts.map(c =>
-    `- Name: ${c.name}${c.title ? ` (${c.title})` : ''}\n  Email: ${c.email}${c.phone ? `\n  Phone: ${c.phone}` : ''}`
-  ).join('\n\n');
+  // 2. Format All Contacts
+  const validContactsList = data.contacts
+    .filter(c => c.name && c.name.trim() !== '')
+    .map(c =>
+      `- Name: ${c.name}\n  Title: ${c.title || 'N/A'}\n  Email: ${c.email}\n  Phone: ${c.phone || 'N/A'}`
+    ).join('\n\n') || '- N/A';
 
-  // Still identify primary for the "Parties" preamble
-  const primaryContact = validContacts[0] || { name: data.email, title: '', email: data.email };
+  // 3. Format Fixtures
+  const fixturesList = data.selectedFixtures?.map(f => `- ${f.type} (Qty: ${f.quantity})`).join('\n') || '- No specifics provided';
 
-  const fixturesList = data.selectedFixtures?.map(f => `- ${f.type} (Qty: ${f.quantity})`).join('\n');
-  const categoriesList = data.categories.join(', ') + (data.categories.includes('Other') && data.otherCategory ? ` (${data.otherCategory})` : '');
+  // 4. Categories & Other
+  const categoriesList = data.categories.join(', ') +
+    (data.categories.includes('Other') && data.otherCategory ? ` (Other: ${data.otherCategory})` : '');
 
+  // 5. Furniture
   const calculateFurniture = (fixtures: number) => {
     if (fixtures < 4) return { tables: 1, chairs: 2 };
     const tables = Math.floor(fixtures / 4);
     const chairs = tables * 3;
     return { tables, chairs };
   };
-  const furniture = calculateFurniture(data.selectedFixtures.reduce((sum, f) => sum + f.quantity, 0));
+  const totalFixtures = data.selectedFixtures ? data.selectedFixtures.reduce((sum, f) => sum + f.quantity, 0) : 0;
+  const furniture = calculateFurniture(totalFixtures);
   const furnitureText = `${furniture.tables} Table(s) and ${furniture.chairs} Chair(s)`;
 
-  const prompt = `
-    Generate a formal, legally binding "Exhibition Service Agreement" between **[Organizer Name]** and **${data.companyName}**.
+  // Construct the static template
+  const contractText = `
+VENDOR AGREEMENT
+Contract ID: (Generated upon submission)
+Date: ${new Date().toLocaleDateString()}
 
-    **Contract Data:**
-    - Date: ${new Date().toLocaleDateString()}
-    - Exhibitor Type: ${data.exhibitorType}
-    - Company Name: ${data.companyName}
-    - Company Address: ${data.address}
-    
-    **Brands Displayed:**
+1. AGREEMENT PARTIES
+This agreement is between CABANA Exhibition Organizing ("Organizer") and ${data.companyName} (hereinafter referred to as "Vendor").
+
+Exhibitor Info:
+Company: ${data.companyName}
+Brands:
 ${brandsList}
+Address: ${data.address}
 
-    **Authorized Contacts:**
+Authorized Contacts:
 ${validContactsList}
-    
-    **Scope of Services / Booth Details:**
-    - Booth Package: ${data.finalBoothSize || data.boothSize}
-    - Fixtures Included:
+
+2. BOOTH ALLOCATION & FIXTURES
+The Vendor is allocated the following:
+Booth Size/Type: ${data.finalBoothSize || data.boothSize || "Standard"}${data.customBoothSize ? ` (Custom Size: ${data.customBoothSize})` : ''}
+Categories: ${categoriesList || 'General'}
+
+Standard Furniture Allotment:
+${furnitureText}
+
+Selected Fixtures:
 ${fixturesList}
-    - Standard Furniture Allotment: ${furnitureText}
-    - Categories: ${categoriesList}
-    - Payment Method: ${data.paymentMode || 'Not Specified'}
-    - Additional Notes/Requests: ${data.notes || 'None'}
 
-    **Instructions for Output:**
-    1. **Parties Section**: Start with a formal declaration: "This Agreement is made on [Date] between [Organizer Name] ('Organizer') and ${data.companyName}, located at ${data.address} ('Vendor')."
-    2. **Exhibitor Info Section**: Create a distinct section titled "Exhibitor Information". List the **Exhibitor Type**, **Company Name**, and **Brands/Showroom** details here.
-    3. **Contact Details Section**: Create a distinct section titled "Contact Details". List **ALL** contacts provided in the "Authorized Contacts" data above. Do NOT include any "N/A" or empty placeholder fields. If multiple contacts are listed above, list all of them.
-    4. **Scope Section**: Clearly list the Booth Package, Fixtures, and the **Standard Furniture Allotment** (${furnitureText}).
-    5. **Special Requests & Billing**: If there are any **Additional Notes/Requests**, include them in a separate section titled "Special Requests & Adjacencies". Clearly state the **Payment Method** (${data.paymentMode || 'Not Specified'}) as well.
-    6. **Standard Clauses**: Include standard sections for Cancellation Policy, Liability, and Insurance.
-    7. **Signature Block**: Include space for signatures for clear identification.
-    8. **Format**: Use clean Markdown.
-  `;
+3. SPECIAL REQUIREMENTS & LOGISTICS
+Booth Customizations: ${data.customBoothRequirements || "None"}
+Special Requirements (Logistics): ${data.specialRequirements || "None"}
+Additional Notes: ${data.notes || "None"}
+Payment Method: ${data.paymentMode || "Credit Card"}
 
-  try {
-    const completion = await groq.chat.completions.create({
-      messages: [
-        {
-          role: "user",
-          content: prompt,
-        },
-      ],
-      model: modelId,
-    });
+4. TERMS
+Standard terms and conditions apply. The Vendor agrees to maintain appropriate insurance and indemnifies the Organizer against all claims, damages, or losses arising from their participation in the exhibition. This agreement is governed by the laws of New York State.
 
-    return completion.choices[0]?.message?.content || "Error: No content generated.";
-  } catch (error: any) {
-    console.error("Groq API Error:", error);
-    throw new Error(`Failed to generate contract: ${error.message || "Unknown error"} `);
-  }
+*End of Document Text*
+  `.trim();
+
+  return Promise.resolve(contractText);
 };

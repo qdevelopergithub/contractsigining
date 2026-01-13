@@ -36,17 +36,6 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
     notes: '',
   });
 
-  const COUNTRY_CODES = [
-    { code: '+1', label: 'US (+1)', length: 10 },
-    { code: '+44', label: 'UK (+44)', length: 10 },
-    { code: '+91', label: 'IN (+91)', length: 10 },
-    { code: '+61', label: 'AU (+61)', length: 9 },
-    { code: '+971', label: 'UAE (+971)', length: 9 },
-    { code: '+33', label: 'FR (+33)', length: 9 },
-    { code: '+49', label: 'DE (+49)', length: 10 },
-    { code: '+81', label: 'JP (+81)', length: 10 },
-    { code: '+86', label: 'CN (+86)', length: 11 },
-  ];
 
   const CATEGORY_OPTIONS = [
     'Resort', 'Men’s', 'Beauty / Body', 'Swim', 'Footwear',
@@ -201,11 +190,11 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
       // New Contact # validation: Required for primary, only digits, max 15
       if (isPrimary) {
         if (!contact.phone?.trim()) {
-          newErrors[`contactPhone_${idx}`] = "Contact # is required";
+          newErrors[`contactPhone_${idx}`] = "Contact Number is required";
         } else {
           const digitsOnly = contact.phone.replace(/\D/g, '');
           if (!/^\d+$/.test(digitsOnly)) {
-            newErrors[`contactPhone_${idx}`] = "Contact must contain only digits";
+            newErrors[`contactPhone_${idx}`] = "Contact Number must contain only digits";
           } else if (digitsOnly.length > 15) {
             newErrors[`contactPhone_${idx}`] = "Contact must be up to 15 digits";
           }
@@ -554,8 +543,8 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
                       </button>
                     )}
                     <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Contact {formData.contacts.length > 1 ? `#${idx + 1}` : ''}</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      <div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className={idx === 0 ? "" : "md:col-span-2"}>
                         <label className={labelClass}>{idx === 0 ? 'Primary Contact Name' : 'Contact Name'} <span className="text-red-500">*</span></label>
                         <div className="relative">
                           <User className={iconClass} />
@@ -573,28 +562,32 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
                         </div>
                         {errors[`contactName_${idx}`] && <p className="text-red-500 text-xs mt-1">{errors[`contactName_${idx}`]}</p>}
                       </div>
-                      <div>
-                        <label className={labelClass}>Contact <span className="text-red-500">*</span></label>
-                        <div className="relative">
-                          <Phone className={iconClass} />
-                          <input
-                            type="text"
-                            maxLength={15}
-                            value={contact.phone}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              if (!/^\d*$/.test(val.replace(/\D/g, ''))) return; // Only allow digits
-                              handleContactChange(idx, 'phone', val);
-                              if (errors[`contactPhone_${idx}`]) setErrors(prev => ({ ...prev, [`contactPhone_${idx}`]: '' }));
-                            }}
-                            className={`${inputClass} ${errors[`contactPhone_${idx}`] ? 'border-red-500 ring-2 ring-red-100' : ''}`}
-                            placeholder="1234567890"
-                            id={`contactPhone_${idx}`}
-                          />
+
+                      {idx === 0 && (
+                        <div>
+                          <label className={labelClass}>Contact # <span className="text-red-500">*</span></label>
+                          <div className="relative">
+                            <Phone className={iconClass} />
+                            <input
+                              type="text"
+                              maxLength={15}
+                              value={contact.phone}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                if (!/^\d*$/.test(val.replace(/\D/g, ''))) return; // Only allow digits
+                                handleContactChange(idx, 'phone', val);
+                                if (errors[`contactPhone_${idx}`]) setErrors(prev => ({ ...prev, [`contactPhone_${idx}`]: '' }));
+                              }}
+                              className={`${inputClass} ${errors[`contactPhone_${idx}`] ? 'border-red-500 ring-2 ring-red-100' : ''}`}
+                              placeholder="1234567890"
+                              id={`contactPhone_${idx}`}
+                            />
+                          </div>
+                          {errors[`contactPhone_${idx}`] && <p className="text-red-500 text-xs mt-1">{errors[`contactPhone_${idx}`]}</p>}
                         </div>
-                        {errors[`contactPhone_${idx}`] && <p className="text-red-500 text-xs mt-1">{errors[`contactPhone_${idx}`]}</p>}
-                      </div>
-                      <div>
+                      )}
+
+                      <div className="md:col-span-2">
                         <label className={labelClass}>Title</label>
                         <div className="relative">
                           <FileText className={iconClass} />
@@ -607,24 +600,25 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
                           />
                         </div>
                       </div>
-                    </div>
-                    <div className="col-span-full">
-                      <label className={labelClass}>Email Address <span className="text-red-500">*</span></label>
-                      <div className="relative">
-                        <Mail className={iconClass} />
-                        <input
-                          type="email"
-                          value={contact.email}
-                          onChange={(e) => {
-                            handleContactChange(idx, 'email', e.target.value);
-                            if (errors[`contactEmail_${idx}`]) setErrors(prev => ({ ...prev, [`contactEmail_${idx}`]: '' }));
-                          }}
-                          className={`${inputClass} ${errors[`contactEmail_${idx}`] ? 'border-red-500 ring-2 ring-red-100' : ''}`}
-                          placeholder="john@company.com"
-                          id={`contactEmail_${idx}`}
-                        />
+
+                      <div className="col-span-full">
+                        <label className={labelClass}>Email Address <span className="text-red-500">*</span></label>
+                        <div className="relative">
+                          <Mail className={iconClass} />
+                          <input
+                            type="email"
+                            value={contact.email}
+                            onChange={(e) => {
+                              handleContactChange(idx, 'email', e.target.value);
+                              if (errors[`contactEmail_${idx}`]) setErrors(prev => ({ ...prev, [`contactEmail_${idx}`]: '' }));
+                            }}
+                            className={`${inputClass} ${errors[`contactEmail_${idx}`] ? 'border-red-500 ring-2 ring-red-100' : ''}`}
+                            placeholder="john@company.com"
+                            id={`contactEmail_${idx}`}
+                          />
+                        </div>
+                        {errors[`contactEmail_${idx}`] && <p className="text-red-500 text-xs mt-1">{errors[`contactEmail_${idx}`]}</p>}
                       </div>
-                      {errors[`contactEmail_${idx}`] && <p className="text-red-500 text-xs mt-1">{errors[`contactEmail_${idx}`]}</p>}
                     </div>
                   </div>
                 ))}
@@ -645,7 +639,7 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
                     <textarea
                       name="address"
                       rows={2}
-                      className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent outline-none transition-all ${errors.address ? 'border-red-500 ring-2 ring-red-100' : 'border-slate-300'}`}
+                      className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all ${errors.address ? 'border-red-500 ring-2 ring-red-100' : 'border-gray-300'}`}
                       value={formData.address}
                       onChange={(e) => {
                         handleChange(e);
@@ -910,31 +904,33 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
         )}
       </form>
       {/* Fixture Preview Modal */}
-      {previewImage && (
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200"
-          onClick={() => setPreviewImage(null)}
-        >
+      {
+        previewImage && (
           <div
-            className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden relative animate-in zoom-in-95 duration-200"
-            onClick={e => e.stopPropagation()}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200"
+            onClick={() => setPreviewImage(null)}
           >
-            <button
-              onClick={() => setPreviewImage(null)}
-              className="absolute top-4 right-4 p-2 bg-white/80 hover:bg-white rounded-full text-slate-500 hover:text-red-500 shadow-sm transition-all z-10"
+            <div
+              className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden relative animate-in zoom-in-95 duration-200"
+              onClick={e => e.stopPropagation()}
             >
-              <X className="w-5 h-5" />
-            </button>
-            <div className="p-1 bg-slate-50">
-              <img src={previewImage} alt="Fixture Preview" className="w-full h-auto object-contain max-h-[70vh] rounded-xl" />
-            </div>
-            <div className="p-4 text-center border-t">
-              <p className="text-sm font-bold text-slate-900">Fixture Reference Image</p>
-              <p className="text-xs text-slate-500">Standard design configuration</p>
+              <button
+                onClick={() => setPreviewImage(null)}
+                className="absolute top-4 right-4 p-2 bg-white/80 hover:bg-white rounded-full text-slate-500 hover:text-red-500 shadow-sm transition-all z-10"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              <div className="p-1 bg-slate-50">
+                <img src={previewImage} alt="Fixture Preview" className="w-full h-auto object-contain max-h-[70vh] rounded-xl" />
+              </div>
+              <div className="p-4 text-center border-t">
+                <p className="text-sm font-bold text-slate-900">Fixture Reference Image</p>
+                <p className="text-xs text-slate-500">Standard design configuration</p>
+              </div>
             </div>
           </div>
-        </div>
-      )}
-    </div>
+        )
+      }
+    </div >
   );
 };

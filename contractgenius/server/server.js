@@ -82,53 +82,57 @@ app.post('/api/contracts/draft', async (req, res) => {
   try {
     const { name, email, address, company, boothSize, finalBoothSize, customBoothSize, customBoothRequirements, fixture, fixtureQuantity, eventDate, specialRequirements, brandName, phone, selectedFixtures, categories, additionalContact } = req.body;
 
-    // 1. Generate Contract with Gemini
+    // 1. Generate Static Contract Template (NO AI)
     const fixturesList = req.body.selectedFixtures?.map(f => `- ${f.type} (Qty: ${f.quantity})`).join('\n') || `- ${req.body.fixture} (Qty: ${req.body.fixtureQuantity})`;
-    const categoriesList = req.body.categories?.join(', ') || 'N/A';
+    const categoriesList = req.body.categories?.map(c => c === 'Other' ? `Other: ${req.body.otherCategory || 'Miscellaneous'}` : c).join(', ') || 'N/A';
 
-    const prompt = `
-      Draft a professional "Exhibition Service Agreement" for:
-      
-      Exhibitor Info:
-      - Company Name: ${req.body.company}
-      - Brand Name: ${req.body.brandName || 'N/A'}
-      
-      Primary Contact:
-      - Name: ${req.body.name}
-      - Email: ${req.body.email}
-      - Phone: ${req.body.countryCode} ${req.body.phone || 'N/A'}
-      - Company Address: ${req.body.address}
-      
-      Additional Contact (For Reference):
-      - Name: ${additionalContact?.name || 'N/A'}
-      - Email: ${additionalContact?.email || 'N/A'}
-      - Phone: ${additionalContact?.phone ? (additionalContact.countryCode + ' ' + additionalContact.phone) : 'N/A'}
-      
-      Categories:
-      - ${categoriesList}
+    // Formatting Brands
+    const brandsList = (req.body.brands || [])
+      .filter(b => b.brandName && b.brandName.trim() !== '')
+      .map(b => `- Brand: ${b.brandName}${b.website ? ` (Website: ${b.website})` : ''}`)
+      .join('\n') || `- Brand: ${req.body.brandName || 'N/A'}`;
 
-      Booth Allocation:
-      - Size/Type: ${req.body.finalBoothSize || req.body.boothSize}
-      - Selected Fixtures:
+    // Formatting Contacts
+    const contactsList = (req.body.contacts || [])
+      .filter(c => c.name && c.name.trim() !== '')
+      .map(c => `- Name: ${c.name}\n  Title: ${c.title || 'N/A'}\n  Email: ${c.email}\n  Phone: ${c.phone || 'N/A'}`)
+      .join('\n\n') || `- Name: ${req.body.name}\n  Email: ${req.body.email}\n  Phone: ${req.body.phone || 'N/A'}`;
+
+    const contractText = `
+EXHIBITION SERVICE AGREEMENT
+Date: ${new Date().toLocaleDateString()}
+
+1. AGREEMENT PARTIES
+This agreement is between CABANA Exhibition Organizing ("Organizer") and ${req.body.company} (hereinafter referred to as "Vendor").
+
+Exhibitor Info:
+Company: ${req.body.company}
+Brands:
+${brandsList}
+Address: ${req.body.address}
+
+Authorized Contacts:
+${contactsList}
+
+2. BOOTH ALLOCATION & FIXTURES
+The Vendor is allocated the following:
+Booth Size/Type: ${req.body.finalBoothSize || req.body.boothSize || "Standard"}${req.body.customBoothSize ? ` (Custom Size: ${req.body.customBoothSize})` : ''}
+Categories: ${categoriesList}
+
+Selected Fixtures:
 ${fixturesList}
-      
-      Requirements:
-      1. Include sections for Parties, Booth & Fixtures, Payment (realistic pricing), and Liability.
-      2. **Important:** Explicitly state the **Company Address** and **Company Name** in the Agreement Parties section.
-      3. Format in clean Markdown.
-    `;
 
-    const completion = await groq.chat.completions.create({
-      messages: [
-        {
-          role: "user",
-          content: prompt,
-        },
-      ],
-      model: "llama-3.3-70b-versatile",
-    });
+3. SPECIAL REQUIREMENTS & LOGISTICS
+Booth Customizations: ${req.body.customBoothRequirements || "None"}
+Special Requirements: ${req.body.specialRequirements || "None"}
+Additional Notes: ${req.body.notes || "None"}
+Payment Method: ${req.body.paymentMode || "Credit Card"}
 
-    const contractText = completion.choices[0]?.message?.content || "Error: No content generated.";
+4. TERMS
+Standard terms and conditions apply. The Vendor agrees to maintain appropriate insurance and indemnifies the Organizer against all claims, damages, or losses arising from participation. This agreement is governed by the laws of New York State.
+
+*End of Document Text*
+    `.trim();
 
     // 2. Create Contract ID and Save Full Contract Data to Database
     const contractId = 'contract_' + Date.now().toString(36);

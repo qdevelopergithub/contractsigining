@@ -446,8 +446,8 @@ const VendorForm: React.FC<VendorFormProps> = ({
                     </button>
                   )}
                   <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Contact {data.contacts.length > 1 ? `#${idx + 1}` : ''}</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className={idx === 0 ? "" : "md:col-span-2"}>
                       <label className={labelClass}>{idx === 0 ? 'Primary Contact Name' : 'Contact Name'} <span className="text-red-500">*</span></label>
                       <div className="relative">
                         <User className={iconClass} />
@@ -465,28 +465,32 @@ const VendorForm: React.FC<VendorFormProps> = ({
                       </div>
                       {errors[`contactName_${idx}`] && <p className="text-red-500 text-xs mt-1">{errors[`contactName_${idx}`]}</p>}
                     </div>
-                    <div>
-                      <label className={labelClass}>Contact <span className="text-red-500">*</span></label>
-                      <div className="relative">
-                        <Phone className={iconClass} />
-                        <input
-                          type="text"
-                          maxLength={15}
-                          value={contact.phone}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            if (!/^\d*$/.test(val.replace(/\D/g, ''))) return; // Only allow digits
-                            handleContactChange(idx, 'phone', val);
-                            if (errors[`contactPhone_${idx}`]) setErrors(prev => ({ ...prev, [`contactPhone_${idx}`]: '' }));
-                          }}
-                          className={`${inputClass} ${errors[`contactPhone_${idx}`] ? 'border-red-500 ring-1 ring-red-500' : ''}`}
-                          placeholder="1234567890"
-                          id={`contactPhone_${idx}`}
-                        />
+
+                    {idx === 0 && (
+                      <div>
+                        <label className={labelClass}>Contact # <span className="text-red-500">*</span></label>
+                        <div className="relative">
+                          <Phone className={iconClass} />
+                          <input
+                            type="text"
+                            maxLength={15}
+                            value={contact.phone}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              if (!/^\d*$/.test(val.replace(/\D/g, ''))) return; // Only allow digits
+                              handleContactChange(idx, 'phone', val);
+                              if (errors[`contactPhone_${idx}`]) setErrors(prev => ({ ...prev, [`contactPhone_${idx}`]: '' }));
+                            }}
+                            className={`${inputClass} ${errors[`contactPhone_${idx}`] ? 'border-red-500 ring-1 ring-red-500' : ''}`}
+                            placeholder="1234567890"
+                            id={`contactPhone_${idx}`}
+                          />
+                        </div>
+                        {errors[`contactPhone_${idx}`] && <p className="text-red-500 text-xs mt-1">{errors[`contactPhone_${idx}`]}</p>}
                       </div>
-                      {errors[`contactPhone_${idx}`] && <p className="text-red-500 text-xs mt-1">{errors[`contactPhone_${idx}`]}</p>}
-                    </div>
-                    <div>
+                    )}
+
+                    <div className="md:col-span-2">
                       <label className={labelClass}>Title</label>
                       <div className="relative">
                         <FileText className={iconClass} />
@@ -499,29 +503,31 @@ const VendorForm: React.FC<VendorFormProps> = ({
                         />
                       </div>
                     </div>
-                  </div>
-                  <div className="col-span-full">
-                    <label className={labelClass}>Email Address <span className="text-red-500">*</span></label>
-                    <div className="relative">
-                      <Mail className={iconClass} />
-                      <input
-                        type="email"
-                        value={contact.email}
-                        onChange={(e) => {
-                          handleContactChange(idx, 'email', e.target.value);
-                          if (errors[`contactEmail_${idx}`]) setErrors(prev => ({ ...prev, [`contactEmail_${idx}`]: '' }));
-                        }}
-                        className={`${inputClass} ${errors[`contactEmail_${idx}`] ? 'border-red-500 ring-1 ring-red-500' : ''}`}
-                        placeholder="john@company.com"
-                        id={`contactEmail_${idx}`}
-                      />
+
+                    <div className="col-span-full">
+                      <label className={labelClass}>Email Address <span className="text-red-500">*</span></label>
+                      <div className="relative">
+                        <Mail className={iconClass} />
+                        <input
+                          type="email"
+                          value={contact.email}
+                          onChange={(e) => {
+                            handleContactChange(idx, 'email', e.target.value);
+                            if (errors[`contactEmail_${idx}`]) setErrors(prev => ({ ...prev, [`contactEmail_${idx}`]: '' }));
+                          }}
+                          className={`${inputClass} ${errors[`contactEmail_${idx}`] ? 'border-red-500 ring-1 ring-red-500' : ''}`}
+                          placeholder="john@company.com"
+                          id={`contactEmail_${idx}`}
+                        />
+                      </div>
+                      {errors[`contactEmail_${idx}`] && <p className="text-red-500 text-xs mt-1">{errors[`contactEmail_${idx}`]}</p>}
                     </div>
-                    {errors[`contactEmail_${idx}`] && <p className="text-red-500 text-xs mt-1">{errors[`contactEmail_${idx}`]}</p>}
                   </div>
                 </div>
               ))}
 
               <button
+                type="button"
                 onClick={addContactRow}
                 className="w-full py-2 border-2 border-dashed border-slate-300 rounded-lg text-slate-500 text-sm font-medium hover:border-accent hover:text-accent transition-all flex items-center justify-center gap-2"
               >
