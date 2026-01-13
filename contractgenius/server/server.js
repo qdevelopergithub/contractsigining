@@ -107,10 +107,10 @@ Date: ${new Date().toLocaleDateString()}
 This agreement is between CABANA Exhibition Organizing ("Organizer") and ${company || req.body.companyName || 'Vendor'} (hereinafter referred to as "Vendor").
 
 Exhibitor Info:
-Company: ${company || req.body.companyName || 'Vendor'}
+${(exhibitorType || req.body.exhibitorType) === 'Multi-line showroom' ? 'Showroom Name' : 'Company'}: ${company || req.body.companyName || 'Vendor'}
 Brands:
 ${brandsList}
-Address: ${address || 'N/A'}
+Address: ${req.body.address}
 
 Authorized Contacts:
 ${contactsList}
