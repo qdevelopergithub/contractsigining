@@ -26,8 +26,9 @@ export const generateVendorContract = async (data: VendorFormData): Promise<stri
   const fixturesList = data.selectedFixtures?.map(f => `- ${f.type} (Qty: ${f.quantity})`).join('\n') || '- No specifics provided';
 
   // 4. Categories & Other
-  const categoriesList = data.categories.join(', ') +
-    (data.categories.includes('Other') && data.otherCategory ? ` (Other: ${data.otherCategory})` : '');
+  const categoriesList = data.categories
+    .map(c => c === 'Other' ? `Other: ${data.otherCategory || 'Miscellaneous'}` : c)
+    .join(', ') || 'N/A';
 
   // 5. Furniture
   const calculateFurniture = (fixtures: number) => {

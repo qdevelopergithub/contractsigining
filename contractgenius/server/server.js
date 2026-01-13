@@ -80,11 +80,12 @@ app.get('/', (req, res) => {
 // POST /api/contracts/draft
 app.post('/api/contracts/draft', async (req, res) => {
   try {
-    const { name, email, address, company, boothSize, finalBoothSize, customBoothSize, customBoothRequirements, fixture, fixtureQuantity, eventDate, specialRequirements, brandName, phone, selectedFixtures, categories, additionalContact } = req.body;
+    const { name, email, address, company, boothSize, finalBoothSize, customBoothSize, customBoothRequirements, fixture, fixtureQuantity, eventDate, specialRequirements, brandName, phone, selectedFixtures, categories, otherCategory, additionalContact } = req.body;
+    console.log(`[Server] Draft Request - Company: ${company || req.body.companyName}, Categories: ${categories?.join(', ')}, OtherCategory: ${otherCategory}`);
 
     // 1. Generate Static Contract Template (NO AI)
-    const fixturesList = req.body.selectedFixtures?.map(f => `- ${f.type} (Qty: ${f.quantity})`).join('\n') || `- ${req.body.fixture} (Qty: ${req.body.fixtureQuantity})`;
-    const categoriesList = req.body.categories?.map(c => c === 'Other' ? `Other: ${req.body.otherCategory || 'Miscellaneous'}` : c).join(', ') || 'N/A';
+    const fixturesList = (selectedFixtures || req.body.selectedFixtures)?.map(f => `- ${f.type} (Qty: ${f.quantity})`).join('\n') || `- ${fixture || req.body.fixture} (Qty: ${fixtureQuantity || req.body.fixtureQuantity})`;
+    const categoriesList = (categories || req.body.categories)?.map(c => c === 'Other' ? `Other: ${otherCategory || req.body.otherCategory || 'Miscellaneous'}` : c).join(', ') || 'N/A';
 
     // Formatting Brands
     const brandsList = (req.body.brands || [])
@@ -103,28 +104,28 @@ EXHIBITION SERVICE AGREEMENT
 Date: ${new Date().toLocaleDateString()}
 
 1. AGREEMENT PARTIES
-This agreement is between CABANA Exhibition Organizing ("Organizer") and ${req.body.company} (hereinafter referred to as "Vendor").
+This agreement is between CABANA Exhibition Organizing ("Organizer") and ${company || req.body.companyName || 'Vendor'} (hereinafter referred to as "Vendor").
 
 Exhibitor Info:
-Company: ${req.body.company}
+Company: ${company || req.body.companyName || 'Vendor'}
 Brands:
 ${brandsList}
-Address: ${req.body.address}
+Address: ${address || 'N/A'}
 
 Authorized Contacts:
 ${contactsList}
 
 2. BOOTH ALLOCATION & FIXTURES
 The Vendor is allocated the following:
-Booth Size/Type: ${req.body.finalBoothSize || req.body.boothSize || "Standard"}${req.body.customBoothSize ? ` (Custom Size: ${req.body.customBoothSize})` : ''}
+Booth Size/Type: ${finalBoothSize || boothSize || "Standard"}${customBoothSize ? ` (Custom Size: ${customBoothSize})` : ''}
 Categories: ${categoriesList}
 
 Selected Fixtures:
 ${fixturesList}
 
 3. SPECIAL REQUIREMENTS & LOGISTICS
-Booth Customizations: ${req.body.customBoothRequirements || "None"}
-Special Requirements: ${req.body.specialRequirements || "None"}
+Booth Customizations: ${customBoothRequirements || "None"}
+Special Requirements: ${specialRequirements || "None"}
 Additional Notes: ${req.body.notes || "None"}
 Payment Method: ${req.body.paymentMode || "Credit Card"}
 
