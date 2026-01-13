@@ -262,7 +262,7 @@ export const VendorContractView: React.FC<Props> = ({ contractId, navigate }) =>
 
                 <h1 className="text-3xl font-bold text-gray-900 mb-4">Contract Signed Successfully</h1>
                 <p className="text-gray-500 mb-10 text-lg leading-relaxed">
-                    Thank you, <span className="font-semibold text-gray-900">{contract.vendorDetails.name}</span>. <br />
+                    Thank you, <span className="font-semibold text-gray-900">{contract.vendorDetails.name || contract.vendorDetails.contacts[0]?.name || contract.vendorDetails.company}</span>. <br />
                     The document has been finalized.
                 </p>
 

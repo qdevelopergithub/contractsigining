@@ -263,7 +263,7 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
 
         // Contacts
         contacts: formData.contacts,
-        name: formData.contacts[0]?.name || '',
+        name: formData.contacts[0]?.name || '', // Explicitly set name
         email: formData.contacts[0]?.email || formData.email,
 
         // Address & Categories
@@ -306,27 +306,20 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
       console.log(`[Frontend] ✅ Contract created: ${contractId}`);
       setGeneratedLink(magicLink);
 
-      // 3. Send Email via Make.com Webhook
+      // 3. Trigger Email via Make.com Webhook (FIRE AND FORGET - Don't wait for it)
       const MAKE_WEBHOOK_URL = "https://hook.us2.make.com/ihncxlrp5nekfz7h2kmy5hni4lv0ct6w";
+      fetch(MAKE_WEBHOOK_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: "submit_vendor_data",
+          submissionLink: magicLink,
+          email: formData.email,
+          contractId: contractId
+        })
+      }).catch(webhookError => console.error("Make.com Webhook Background Error:", webhookError));
 
-      try {
-        await fetch(MAKE_WEBHOOK_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: "submit_vendor_data",
-            submissionLink: magicLink,
-            email: formData.email,
-            contractId: contractId
-          })
-        });
-        alert(`Contract Generated!\n\nEmail for signing link triggered via Make.com.`);
-      } catch (webhookError) {
-        console.error("Make.com Webhook Error:", webhookError);
-        alert("Contract generated, but failed to trigger Make.com email. Check the console.");
-      }
-
-      // 4. Navigate to contract view
+      // 4. Navigate INSTANTLY to contract view
       navigate(`#/contract/${contractId}`);
 
     } catch (error) {

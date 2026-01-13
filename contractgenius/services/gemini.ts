@@ -54,39 +54,73 @@ export const generateContractDraft = async (details: VendorDetails): Promise<str
   const categoriesList = details.categories?.map(c => c === 'Other' ? `Other (${details.otherCategory})` : c).join(', ') || 'General';
 
   const prompt = `
-    Generate a formal, legally binding "Exhibition Service Agreement" between **CABANA Exhibition Organizing** and **${details.company}**.
-
-    **Contract Data:**
-    - Date: ${new Date().toLocaleDateString()}
-    - Exhibitor Type: ${details.exhibitorType}
-    - Company Name: ${details.company}
-    - Company Address: ${details.address}
-
-    **Brands Displayed:**
-${brandsList}
-
-    **Authorized Contacts:**
-${validContactsList}
+    TASK: GENERATE A FORMAL, LEGALLY BINDING "EXHIBITION SERVICE AGREEMENT".
+    STRICT RULE: DO NOT USE ANY PLACEHOLDERS LIKE [DATE], [CITY], [CONTACT NAME], OR [Organizing Company Name]. 
+    USE THE PROVIDED DATA EXACTLY. IF DATA IS MISSING (LIKE INDIVIDUAL'S NAME IN HEADER), USE THE COMPANY NAME "${details.company}".
     
-    **Scope of Services / Booth Details:**
-    - Booth Package: ${details.finalBoothSize || details.boothSize}
-    - Fixtures Included:
-${fixturesList}
-    - Standard Furniture Allotment: ${furnitureText}
-    - Categories: ${categoriesList}
-    - Payment Method: ${details.paymentMode || 'Not Specified'}
-    - Special Requirements: ${details.specialRequirements || 'None'}
-    - Additional Notes/Requests: ${details.notes || 'None'}
+    ORGANIZER DETAILS (HARDCODED):
+    - Name: CABANA Exhibition Organizing
+    - Address: One World Trade Center, Suite 85, New York, NY 10007, USA
+    - Authorized Representative: Licensing Department
 
-    **Instructions for Output:**
-    1. **Parties Section**: Start with a formal declaration: "This Agreement is made on ${new Date().toLocaleDateString()} between CABANA Exhibition Organizing ('Organizer') and ${details.company}, located at ${details.address} ('Vendor')."
-    2. **Exhibitor Info Section**: Create a distinct section titled "Exhibitor Information". List the **Exhibitor Type**, **Company Name**, and **Brands/Showroom** details here.
-    3. **Contact Details Section**: Create a distinct section titled "Contact Details". List **ALL** contacts provided in the "Authorized Contacts" data above. Do NOT include any "N/A" or empty placeholder fields.
-    4. **Scope Section**: Clearly list the Booth Package, Fixtures, and the **Standard Furniture Allotment** (${furnitureText}).
-    5. **Special Requests & Billing**: Include a section for **Additional Notes/Requests** and clearly state the **Payment Method** (${details.paymentMode || 'Not Specified'}).
-    6. **Standard Clauses**: Include standard sections for Cancellation Policy, Liability, and Insurance.
-    7. **Signature Block**: Include space for signatures for clear identification.
-    8. **Format**: Use clean Markdown.
+    VENDOR/EXHIBITOR DATA:
+    - Company: ${details.company}
+    - Address: ${details.address}
+    - Exhibitor Type: ${details.exhibitorType}
+    - Primary Representative: ${primaryContact.name} (${primaryContact.title || 'Director'})
+    - Contact Email: ${primaryContact.email}
+    
+    DISPLAY DATA (MANDATORY INCLUSION):
+    - Brands Displayed: ${brandsList}
+    - Categories: ${categoriesList}
+    
+    BOOTH & LOGISTICS DATA:
+    - Package: ${details.finalBoothSize || details.boothSize}
+    - Allocated Fixtures: ${fixturesList}
+    - Furniture Package: ${furnitureText}
+    - Special Notes: ${details.notes || 'None'}
+    - Payment Method: ${details.paymentMode || 'Credit Card'}
+
+    OUTPUT STRUCTURE (USE THIS EXACTLY):
+    
+    # EXHIBITION SERVICE AGREEMENT
+    
+    This Agreement is made on ${new Date().toLocaleDateString()} by and between **CABANA Exhibition Organizing**, with its principal office at One World Trade Center, Suite 85, New York, NY 10007 ("Organizer") and **${details.company}**, located at ${details.address} ("Exhibitor").
+
+    ## 1. EXHIBITOR INFORMATION & BRANDS
+    The Exhibitor (${details.exhibitorType}) shall display the following authorized brands:
+    ${brandsList}
+    Categorization: ${categoriesList}
+
+    ## 2. AUTHORIZED REPRESENTATIVES
+    Authorized personnel for the duration of the event:
+    ${validContactsList}
+
+    ## 3. BOOTH ALLOCATION & FIXTURES
+    The Organizer grants the Exhibitor use of the following Booth Package:
+    - **Size**: ${details.finalBoothSize || details.boothSize}
+    - **Fixtures**: ${fixturesList}
+    - **Standard Furniture**: ${furnitureText}
+    
+    ## 4. SPECIAL REQUIREMENTS & BILLING
+    - **Additional Notes**: ${details.notes || "No additional requirements provided."}
+    - **Payment Mode**: The Exhibitor has selected "${details.paymentMode || 'Credit Card'}" for all billing associated with this agreement.
+
+    ## 5. STANDARD TERMS & CONDITIONS
+    - **Liability**: The Exhibitor agrees to maintain appropriate insurance and indemnifies the Organizer against any damages to the booth or venue caused by their installation.
+    - **Cancellation**: Cancellation policies apply as per the standard Cabana Exhibitor Guide.
+    - **Governing Law**: This Agreement shall be governed by the laws of the State of New York.
+
+    ## 6. EXECUTION
+    By signing this document electronically, the parties agree to be bound by its terms.
+
+    **FOR ORGANIZER:**
+    CABANA Exhibition Organizing
+    Authorized Signatory: Licensing Department
+    
+    **FOR EXHIBITOR:**
+    ${details.company}
+    Authorized Signatory: ${primaryContact.name}
   `;
 
   try {

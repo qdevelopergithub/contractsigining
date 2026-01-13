@@ -40,7 +40,8 @@ export const generateSignedPDF = async (contract: Contract): Promise<Uint8Array>
 
   drawLine(`Contract ID: ${contract.id}`, true);
   drawLine(`Date: ${new Date(contract.createdAt).toLocaleDateString()}`);
-  drawLine(`Vendor: ${contract.vendorDetails.name} (${contract.vendorDetails.company})`);
+  const vendorName = contract.vendorDetails.name || (contract.vendorDetails.contacts && contract.vendorDetails.contacts[0]?.name) || contract.vendorDetails.company;
+  drawLine(`Vendor: ${vendorName} (${contract.vendorDetails.company})`);
   drawLine(`Email: ${contract.vendorDetails.email}`);
   yPosition -= 20;
 
