@@ -189,10 +189,29 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
 
     formData.brands.forEach((brand, idx) => {
       if (!brand.brandName?.trim()) newErrors[`brandName_${idx}`] = "Brand Name is required";
+      if (brand.website?.trim() && !/^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/.test(brand.website)) {
+        newErrors[`brandWebsite_${idx}`] = "Invalid Website URL";
+      }
     });
 
     formData.contacts.forEach((contact, idx) => {
-      if (!contact.name?.trim()) newErrors[`contactName_${idx}`] = "Contact Name is required";
+      const isPrimary = idx === 0;
+      if (!contact.name?.trim()) newErrors[`contactName_${idx}`] = isPrimary ? "Primary Contact Name is required" : "Contact Name is required";
+
+      // New Contact # validation: Required for primary, only digits, max 15
+      if (isPrimary) {
+        if (!contact.phone?.trim()) {
+          newErrors[`contactPhone_${idx}`] = "Contact # is required";
+        } else {
+          const digitsOnly = contact.phone.replace(/\D/g, '');
+          if (!/^\d+$/.test(digitsOnly)) {
+            newErrors[`contactPhone_${idx}`] = "Contact # must contain only digits";
+          } else if (digitsOnly.length > 15) {
+            newErrors[`contactPhone_${idx}`] = "Contact # must be up to 15 digits";
+          }
+        }
+      }
+
       if (!contact.email?.trim()) {
         newErrors[`contactEmail_${idx}`] = "Email is required";
       } else if (!emailRegex.test(contact.email)) {
@@ -483,11 +502,16 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
                             <input
                               type="url"
                               value={brand.website}
-                              onChange={(e) => handleBrandChange(idx, 'website', e.target.value)}
-                              className={inputClass}
+                              onChange={(e) => {
+                                handleBrandChange(idx, 'website', e.target.value);
+                                if (errors[`brandWebsite_${idx}`]) setErrors(prev => ({ ...prev, [`brandWebsite_${idx}`]: '' }));
+                              }}
+                              className={`${inputClass} ${errors[`brandWebsite_${idx}`] ? 'border-red-500 ring-2 ring-red-100' : ''}`}
                               placeholder="https://www.company.com"
+                              id={`brandWebsite_${idx}`}
                             />
                           </div>
+                          {errors[`brandWebsite_${idx}`] && <p className="text-red-500 text-xs mt-1">{errors[`brandWebsite_${idx}`]}</p>}
                         </div>
                         <div>
                           <label className={labelClass}>Instagram</label>
@@ -539,7 +563,7 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
                     <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Contact {formData.contacts.length > 1 ? `#${idx + 1}` : ''}</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
-                        <label className={labelClass}>Contact Name <span className="text-red-500">*</span></label>
+                        <label className={labelClass}>{idx === 0 ? 'Primary Contact Name' : 'Contact Name'} <span className="text-red-500">*</span></label>
                         <div className="relative">
                           <User className={iconClass} />
                           <input
@@ -557,17 +581,22 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
                         {errors[`contactName_${idx}`] && <p className="text-red-500 text-xs mt-1">{errors[`contactName_${idx}`]}</p>}
                       </div>
                       <div>
-                        <label className={labelClass}>{idx === 0 ? 'Primary Phone' : 'Title'}</label>
+                        <label className={labelClass}>{idx === 0 ? 'Contact #' : 'Title'} {idx === 0 && <span className="text-red-500">*</span>}</label>
                         <div className="relative">
                           {idx === 0 ? <Phone className={iconClass} /> : <FileText className={iconClass} />}
                           <input
                             type="text"
                             value={idx === 0 ? contact.phone : contact.title}
-                            onChange={(e) => handleContactChange(idx, idx === 0 ? 'phone' : 'title', e.target.value)}
-                            className={inputClass}
+                            onChange={(e) => {
+                              handleContactChange(idx, idx === 0 ? 'phone' : 'title', e.target.value);
+                              if (idx === 0 && errors[`contactPhone_${idx}`]) setErrors(prev => ({ ...prev, [`contactPhone_${idx}`]: '' }));
+                            }}
+                            className={`${inputClass} ${idx === 0 && errors[`contactPhone_${0}`] ? 'border-red-500 ring-2 ring-red-100' : ''}`}
                             placeholder={idx === 0 ? "+1 (555) 001-0011" : "Managing Director"}
+                            id={idx === 0 ? `contactPhone_${idx}` : undefined}
                           />
                         </div>
+                        {idx === 0 && errors[`contactPhone_${0}`] && <p className="text-red-500 text-xs mt-1">{errors[`contactPhone_${0}`]}</p>}
                       </div>
                       <div className="col-span-full">
                         <label className={labelClass}>Email Address <span className="text-red-500">*</span></label>
@@ -661,16 +690,21 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
                         const size = e.target.value;
                         const qty = calculateTotalQuota(size, formData.customBoothSize);
                         let finalDesc = size;
+                        let customSize = formData.customBoothSize;
+
                         if (size === "Custom Fixture") {
-                          const boothCount = formData.customBoothSize || '0';
-                          finalDesc = `${boothCount} Custom || (${qty} Fixtures)`;
+                          const boothCount = customSize || '0';
+                          finalDesc = `${boothCount} Booth || (${qty} Fixtures)`;
+                        } else {
+                          // Reset custom size when switching to predefined
+                          customSize = '';
                         }
 
                         // Reset fixtures to default state when booth size changes
                         const defaultFixture = { type: 'Rolling Rack', quantity: 4 }; // Default baseline
                         const newFixtures = [defaultFixture];
 
-                        setFormData({ ...formData, boothSize: size, finalBoothSize: finalDesc, selectedFixtures: newFixtures });
+                        setFormData({ ...formData, boothSize: size, customBoothSize: customSize, finalBoothSize: finalDesc, selectedFixtures: newFixtures });
                       }}
                     >
                       {[
@@ -703,7 +737,7 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
                               const units = e.target.value.replace(/[^0-9.]/g, '');
                               const fixtureCount = parseFloat(units || '0') || 0;
                               const boothCount = fixtureCount / 4;
-                              const finalDesc = `${boothCount} Custom || (${fixtureCount} Fixtures)`;
+                              const finalDesc = `${boothCount} Booth || (${fixtureCount} Fixtures)`;
                               const newFixtures = [...formData.selectedFixtures];
                               if (newFixtures.length === 1) newFixtures[0].quantity = 1;
                               setFormData({ ...formData, customBoothSize: units, finalBoothSize: finalDesc, selectedFixtures: newFixtures });
@@ -730,7 +764,7 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
                     </div>
                   </div>
                   {formData.selectedFixtures.map((fix, idx) => (
-                    <div key={idx} className="flex gap-2 items-center">
+                    <div key={idx} className="flex gap-2 items-start">
                       <div className="flex-1 relative">
                         <select
                           className="w-full px-3 pr-14 py-1.5 border rounded text-sm appearance-none"

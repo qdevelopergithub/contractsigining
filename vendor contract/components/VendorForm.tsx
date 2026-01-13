@@ -70,10 +70,29 @@ const VendorForm: React.FC<VendorFormProps> = ({
       if (!brand.brandName?.trim()) {
         newErrors[`brandName_${idx}`] = "Brand Name is required";
       }
+      if (brand.website?.trim() && !/^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/.test(brand.website)) {
+        newErrors[`brandWebsite_${idx}`] = "Invalid Website URL";
+      }
     });
 
     data.contacts.forEach((contact, idx) => {
-      if (!contact.name?.trim()) newErrors[`contactName_${idx}`] = "Contact Name is required";
+      const isPrimary = idx === 0;
+      if (!contact.name?.trim()) newErrors[`contactName_${idx}`] = isPrimary ? "Primary Contact Name is required" : "Contact Name is required";
+
+      // New Contact # validation: Required for primary, only digits, max 15
+      if (isPrimary) {
+        if (!contact.phone?.trim()) {
+          newErrors[`contactPhone_${idx}`] = "Contact # is required";
+        } else {
+          const digitsOnly = contact.phone.replace(/\D/g, '');
+          if (!/^\d+$/.test(digitsOnly)) {
+            newErrors[`contactPhone_${idx}`] = "Contact # must contain only digits";
+          } else if (digitsOnly.length > 15) {
+            newErrors[`contactPhone_${idx}`] = "Contact # must be up to 15 digits";
+          }
+        }
+      }
+
       if (!contact.email?.trim()) {
         newErrors[`contactEmail_${idx}`] = "Email is required";
       } else if (!emailRegex.test(contact.email)) {
@@ -144,9 +163,11 @@ const VendorForm: React.FC<VendorFormProps> = ({
       if (sizeToUse === BoothSize.CUSTOM_LARGE) {
         const fixtureCount = parseFloat(customSizeToUse || '0') || 0;
         const boothCount = fixtureCount / 4;
-        newData.finalBoothSize = `${boothCount} Custom || (${fixtureCount} Fixtures)`;
+        newData.finalBoothSize = `${boothCount} Booth || (${fixtureCount} Fixtures)`;
       } else {
         newData.finalBoothSize = sizeToUse;
+        // Reset custom size when switching to predefined
+        newData.customBoothSize = '';
       }
 
       // If switching booth size, we might need to adjust the first fixture quantity to match quota if it's the only one
@@ -363,11 +384,16 @@ const VendorForm: React.FC<VendorFormProps> = ({
                           <input
                             type="url"
                             value={brand.website}
-                            onChange={(e) => handleBrandChange(idx, 'website', e.target.value)}
-                            className={inputClass}
+                            onChange={(e) => {
+                              handleBrandChange(idx, 'website', e.target.value);
+                              if (errors[`brandWebsite_${idx}`]) setErrors(prev => ({ ...prev, [`brandWebsite_${idx}`]: '' }));
+                            }}
+                            className={`${inputClass} ${errors[`brandWebsite_${idx}`] ? 'border-red-500 ring-1 ring-red-500' : ''}`}
                             placeholder="https://www.company.com"
+                            id={`brandWebsite_${idx}`}
                           />
                         </div>
+                        {errors[`brandWebsite_${idx}`] && <p className="text-red-500 text-xs mt-1">{errors[`brandWebsite_${idx}`]}</p>}
                       </div>
                       <div>
                         <label className={labelClass}>Instagram Handle</label>
@@ -440,17 +466,22 @@ const VendorForm: React.FC<VendorFormProps> = ({
                       {errors[`contactName_${idx}`] && <p className="text-red-500 text-xs mt-1">{errors[`contactName_${idx}`]}</p>}
                     </div>
                     <div>
-                      <label className={labelClass}>{idx === 0 ? 'Contact #' : 'Title'}</label>
+                      <label className={labelClass}>{idx === 0 ? 'Contact #' : 'Title'} {idx === 0 && <span className="text-red-500">*</span>}</label>
                       <div className="relative">
                         {idx === 0 ? <Phone className={iconClass} /> : <FileText className={iconClass} />}
                         <input
                           type="text"
                           value={idx === 0 ? contact.phone : contact.title}
-                          onChange={(e) => handleContactChange(idx, idx === 0 ? 'phone' : 'title', e.target.value)}
-                          className={inputClass}
+                          onChange={(e) => {
+                            handleContactChange(idx, idx === 0 ? 'phone' : 'title', e.target.value);
+                            if (idx === 0 && errors[`contactPhone_${idx}`]) setErrors(prev => ({ ...prev, [`contactPhone_${idx}`]: '' }));
+                          }}
+                          className={`${inputClass} ${idx === 0 && errors[`contactPhone_${0}`] ? 'border-red-500 ring-1 ring-red-500' : ''}`}
                           placeholder={idx === 0 ? "+1 (555) 000-0000" : "Managing Director"}
+                          id={idx === 0 ? `contactPhone_${idx}` : undefined}
                         />
                       </div>
+                      {idx === 0 && errors[`contactPhone_${0}`] && <p className="text-red-500 text-xs mt-1">{errors[`contactPhone_${0}`]}</p>}
                     </div>
                     <div className="col-span-full">
                       <label className={labelClass}>Email Address <span className="text-red-500">*</span></label>
@@ -621,7 +652,7 @@ const VendorForm: React.FC<VendorFormProps> = ({
 
                 <div className="space-y-4">
                   {data.selectedFixtures.map((fix, idx) => (
-                    <div key={idx} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end bg-white p-4 rounded-lg border border-slate-100 shadow-sm relative group">
+                    <div key={idx} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-start bg-white p-4 rounded-lg border border-slate-100 shadow-sm relative group">
                       <div className="md:col-span-7">
                         <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Fixture Type</label>
                         <div className="relative">
