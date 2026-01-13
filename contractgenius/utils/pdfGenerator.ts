@@ -78,14 +78,14 @@ export const generateSignedPDF = async (contract: Contract): Promise<Uint8Array>
     yPosition = page.getSize().height - margin - 40;
   }
 
-  page.drawText('SIGNED BY VENDOR:', {
+  page.drawText('SIGNATURE & CONFIRMATION:', {
     x: margin,
     y: yPosition,
     size: 12,
     font: boldFont,
   });
 
-  yPosition -= 10;
+  yPosition -= 20;
 
   if (contract.signatureBase64) {
     try {
@@ -99,9 +99,12 @@ export const generateSignedPDF = async (contract: Contract): Promise<Uint8Array>
         height: pngDims.height,
       });
 
-      yPosition -= (pngDims.height + 10);
+      yPosition -= (pngDims.height + 20);
 
-      page.drawText(`Signed digitally on: ${new Date(contract.signedAt || Date.now()).toLocaleString()}`, {
+      const vendorName = contract.vendorDetails.name || (contract.vendorDetails.contacts && contract.vendorDetails.contacts[0]?.name) || contract.vendorDetails.company;
+      page.drawText(`Signed by: ${vendorName}`, { x: margin, y: yPosition, size: 10, font: boldFont });
+      yPosition -= 15;
+      page.drawText(`Digitally signed at: ${new Date(contract.signedAt || Date.now()).toLocaleString()}`, {
         x: margin,
         y: yPosition,
         size: 8,
@@ -112,28 +115,14 @@ export const generateSignedPDF = async (contract: Contract): Promise<Uint8Array>
       console.error("Error embedding signature image", e);
       page.drawText('(Signature Image Error)', { x: margin, y: yPosition - 20, size: 10, font });
     }
+  } else {
+    page.drawText('Waitng for signature...', { x: margin, y: yPosition - 20, size: 10, font: font, color: rgb(0.7, 0.7, 0.7) });
   }
 
-  // Organizer Signature Section
-  yPosition -= 60;
-  if (yPosition < 120) {
-    page = pdfDoc.addPage();
-    yPosition = page.getSize().height - margin - 40;
-  }
-
-  page.drawText('SIGNED BY ORGANIZER:', {
-    x: margin,
-    y: yPosition,
-    size: 12,
-    font: boldFont,
-  });
-
-  yPosition -= 20;
-  page.drawText('Name: CABANA Exhibition Organizing', { x: margin, y: yPosition, size: 10, font });
+  yPosition -= 40;
+  page.drawText('__________________________________________________________', { x: margin, y: yPosition, size: 10, font });
   yPosition -= 15;
-  page.drawText('Signature: __________________________', { x: margin, y: yPosition, size: 10, font });
-  yPosition -= 15;
-  page.drawText(`Date: ${new Date().toLocaleDateString()}`, { x: margin, y: yPosition, size: 10, font });
+  page.drawText('CABANA EXHIBITION ORGANIZING - DIGITAL RECORD', { x: margin, y: yPosition, size: 8, font: font, color: rgb(0.5, 0.5, 0.5) });
 
   const pdfBytes = await pdfDoc.save();
   return pdfBytes;

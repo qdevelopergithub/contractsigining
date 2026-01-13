@@ -51,76 +51,77 @@ export const generateContractDraft = async (details: VendorDetails): Promise<str
   const furniture = calculateFurniture(details.selectedFixtures.reduce((sum, f) => sum + f.quantity, 0));
   const furnitureText = `${furniture.tables} Table(s) and ${furniture.chairs} Chair(s)`;
 
-  const categoriesList = details.categories?.map(c => c === 'Other' ? `Other (${details.otherCategory})` : c).join(', ') || 'General';
+  const categoriesList = details.categories?.map(c => c === 'Other' ? `Other: ${details.otherCategory || 'Not detailed'}` : c).join(', ') || 'N/A';
 
   const prompt = `
-    TASK: GENERATE A FORMAL, LEGALLY BINDING "EXHIBITION SERVICE AGREEMENT".
-    STRICT RULE: DO NOT USE ANY PLACEHOLDERS LIKE [DATE], [CITY], [CONTACT NAME], OR [Organizing Company Name]. 
-    USE THE PROVIDED DATA EXACTLY. IF DATA IS MISSING (LIKE INDIVIDUAL'S NAME IN HEADER), USE THE COMPANY NAME "${details.company}".
+    TASK: GENERATE A PROFESSIONAL EXHIBITION SERVICE AGREEMENT.
     
-    ORGANIZER DETAILS (HARDCODED):
-    - Name: CABANA Exhibition Organizing
-    - Address: One World Trade Center, Suite 85, New York, NY 10007, USA
-    - Authorized Representative: Licensing Department
+    CRITICAL RULES:
+    1. DO NOT INCLUDE ANY SIGNATURE LINES OR EXECUTION BLOCKS (E.G., NO "Signed: _______").
+    2. DO NOT USE ANY PLACEHOLDERS OR SQUARE BRACKETS (E.G., NO "[Date]").
+    3. INCLUDE EVERY SECTION BELOW. IF DATA IS MISSING, STATE "N/A" INSTEAD OF OMITTING THE FIELD.
+    4. USE THE EXACT DATA PROVIDED.
 
-    VENDOR/EXHIBITOR DATA:
+    ORGANIZER (CABANA):
+    - Company: CABANA Exhibition Organizing
+    - Address: One World Trade Center, Suite 85, New York, NY 10007, USA
+
+    EXHIBITOR DATA:
     - Company: ${details.company}
     - Address: ${details.address}
-    - Exhibitor Type: ${details.exhibitorType}
-    - Primary Representative: ${primaryContact.name} (${primaryContact.title || 'Director'})
+    - Type: ${details.exhibitorType}
+    - Primary Contact: ${primaryContact.name} (${primaryContact.title || 'Representative'})
     - Contact Email: ${primaryContact.email}
-    
-    DISPLAY DATA (MANDATORY INCLUSION):
-    - Brands Displayed: ${brandsList}
     - Categories: ${categoriesList}
     
-    BOOTH & LOGISTICS DATA:
-    - Package: ${details.finalBoothSize || details.boothSize}
-    - Allocated Fixtures: ${fixturesList}
+    MANDATORY LIST OF BRANDS:
+    ${brandsList || "- No specific brands listed"}
+
+    MANDATORY LIST OF AUTHORIZED CONTACTS:
+    ${validContactsList || "- No additional contacts listed"}
+    
+    LOGISTICS:
+    - Booth Size: ${details.finalBoothSize || details.boothSize || "Standard"}
+    - Fixtures Allocated: ${fixturesList}
     - Furniture Package: ${furnitureText}
     - Special Notes: ${details.notes || 'None'}
     - Payment Method: ${details.paymentMode || 'Credit Card'}
 
-    OUTPUT STRUCTURE (USE THIS EXACTLY):
+    CONTRACT STRUCTURE:
     
     # EXHIBITION SERVICE AGREEMENT
     
-    This Agreement is made on ${new Date().toLocaleDateString()} by and between **CABANA Exhibition Organizing**, with its principal office at One World Trade Center, Suite 85, New York, NY 10007 ("Organizer") and **${details.company}**, located at ${details.address} ("Exhibitor").
+    This Agreement is formalized on ${new Date().toLocaleDateString()} between CABANA Exhibition Organizing ("Organizer") and ${details.company} ("Exhibitor").
 
-    ## 1. EXHIBITOR INFORMATION & BRANDS
-    The Exhibitor (${details.exhibitorType}) shall display the following authorized brands:
-    ${brandsList}
-    Categorization: ${categoriesList}
+    ## ARTICLE 1: EXHIBITOR PROFILE
+    - **Exhibitor Name**: ${details.company}
+    - **Address**: ${details.address}
+    - **Exhibitor Type**: ${details.exhibitorType}
+    - **Display Categories**: ${categoriesList}
 
-    ## 2. AUTHORIZED REPRESENTATIVES
-    Authorized personnel for the duration of the event:
+    ## ARTICLE 2: AUTHORIZED REPRESENTATIVES
+    The following individuals are registered as authorized representatives for this exhibition:
     ${validContactsList}
 
-    ## 3. BOOTH ALLOCATION & FIXTURES
-    The Organizer grants the Exhibitor use of the following Booth Package:
-    - **Size**: ${details.finalBoothSize || details.boothSize}
-    - **Fixtures**: ${fixturesList}
+    ## ARTICLE 3: BRANDS DISPLAYED
+    The Exhibitor represents and warrants they are authorized to display the following brands:
+    ${brandsList}
+
+    ## ARTICLE 4: ALLOCATION OF SPACE & LOGISTICS
+    - **Booth Package**: ${details.finalBoothSize || details.boothSize}
+    - **Fixtures Requested**:
+    ${fixturesList}
     - **Standard Furniture**: ${furnitureText}
     
-    ## 4. SPECIAL REQUIREMENTS & BILLING
-    - **Additional Notes**: ${details.notes || "No additional requirements provided."}
-    - **Payment Mode**: The Exhibitor has selected "${details.paymentMode || 'Credit Card'}" for all billing associated with this agreement.
+    ## ARTICLE 5: SPECIAL NOTES & REQUESTS
+    ${details.notes || "No special requirements or notes have been submitted."}
 
-    ## 5. STANDARD TERMS & CONDITIONS
-    - **Liability**: The Exhibitor agrees to maintain appropriate insurance and indemnifies the Organizer against any damages to the booth or venue caused by their installation.
-    - **Cancellation**: Cancellation policies apply as per the standard Cabana Exhibitor Guide.
-    - **Governing Law**: This Agreement shall be governed by the laws of the State of New York.
+    ## ARTICLE 6: BILLING & TERMS
+    - **Payment Selection**: ${details.paymentMode || 'Credit Card'}
+    - **Liability**: The Exhibitor agrees to the standard liability and insurance terms provided in the Cabana Exhibitor Handbook.
+    - **Governing Law**: This agreement is governed by the laws of New York State.
 
-    ## 6. EXECUTION
-    By signing this document electronically, the parties agree to be bound by its terms.
-
-    **FOR ORGANIZER:**
-    CABANA Exhibition Organizing
-    Authorized Signatory: Licensing Department
-    
-    **FOR EXHIBITOR:**
-    ${details.company}
-    Authorized Signatory: ${primaryContact.name}
+    *End of Document Text*
   `;
 
   try {
