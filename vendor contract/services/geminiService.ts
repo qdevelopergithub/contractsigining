@@ -1,4 +1,4 @@
-import { VendorFormData } from "../types";
+import { VendorFormData, FixtureType } from "../types";
 
 export const generateVendorContract = async (data: VendorFormData): Promise<string> => {
   // 1. Format Brands
@@ -37,7 +37,9 @@ export const generateVendorContract = async (data: VendorFormData): Promise<stri
     const chairs = tables * 3;
     return { tables, chairs };
   };
-  const totalFixtures = data.selectedFixtures ? data.selectedFixtures.reduce((sum, f) => sum + f.quantity, 0) : 0;
+  const totalFixtures = data.selectedFixtures ? data.selectedFixtures.reduce((sum, f) =>
+    sum + (f.type === FixtureType.ACCESSORY_SHELVES_STACKED ? f.quantity * 2 : f.quantity), 0
+  ) : 0;
   const furniture = calculateFurniture(totalFixtures);
   const furnitureText = `${furniture.tables} Table(s) and ${furniture.chairs} Chair(s)`;
 

@@ -82,7 +82,9 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
     return { tables, chairs };
   };
 
-  const currentTotalFixtures = formData.selectedFixtures.reduce((sum, f) => sum + f.quantity, 0);
+  const currentTotalFixtures = formData.selectedFixtures.reduce((sum, f) =>
+    sum + (f.type === '2 Accessory Shelves (Stacked)' ? f.quantity * 2 : f.quantity), 0
+  );
   const totalQuota = calculateTotalQuota(formData.boothSize, formData.customBoothSize);
 
   const handleBrandChange = (index: number, field: keyof BrandInfo, value: string) => {

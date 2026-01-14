@@ -148,7 +148,9 @@ const VendorForm: React.FC<VendorFormProps> = ({
   };
 
   const totalQuota = calculateTotalQuota(data.boothSize, data.customBoothSize);
-  const currentTotalFixtures = data.selectedFixtures.reduce((sum, f) => sum + f.quantity, 0);
+  const currentTotalFixtures = data.selectedFixtures.reduce((sum, f) =>
+    sum + (f.type === FixtureType.ACCESSORY_SHELVES_STACKED ? f.quantity * 2 : f.quantity), 0
+  );
 
   const handleChange = (field: keyof VendorFormData, value: any) => {
     const newData = { ...data, [field]: value };

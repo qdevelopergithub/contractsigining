@@ -35,7 +35,9 @@ export const generateContractDraft = async (details: VendorDetails): Promise<str
     const chairs = tables * 3;
     return { tables, chairs };
   };
-  const totalFixtures = details.selectedFixtures ? details.selectedFixtures.reduce((sum, f) => sum + f.quantity, 0) : details.fixtureQuantity;
+  const totalFixtures = details.selectedFixtures ? details.selectedFixtures.reduce((sum, f) =>
+    sum + (f.type === '2 Accessory Shelves (Stacked)' ? f.quantity * 2 : f.quantity), 0
+  ) : details.fixtureQuantity;
   const furniture = calculateFurniture(totalFixtures);
   const furnitureText = `${furniture.tables} Table(s) and ${furniture.chairs} Chair(s)`;
 

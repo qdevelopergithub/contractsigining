@@ -85,6 +85,7 @@ export interface VendorFormData {
 
   paymentMode: PaymentMode;
   notes?: string;
+  specialRequirements?: string;
 }
 
 export const INITIAL_FORM_DATA: VendorFormData = {
