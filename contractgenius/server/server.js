@@ -80,7 +80,7 @@ app.get('/', (req, res) => {
 // POST /api/contracts/draft
 app.post('/api/contracts/draft', async (req, res) => {
   try {
-    const { name, email, address, company, boothSize, finalBoothSize, customBoothSize, customBoothRequirements, fixture, fixtureQuantity, eventDate, specialRequirements, brandName, phone, selectedFixtures, categories, otherCategory, additionalContact } = req.body;
+    const { name, email, address, company, exhibitorType, boothSize, finalBoothSize, customBoothSize, customBoothRequirements, fixture, fixtureQuantity, eventDate, specialRequirements, brandName, phone, selectedFixtures, categories, otherCategory, additionalContact } = req.body;
     console.log(`[Server] Draft Request - Company: ${company || req.body.companyName}, Categories: ${categories?.join(', ')}, OtherCategory: ${otherCategory}`);
 
     // 1. Generate Static Contract Template (NO AI)
