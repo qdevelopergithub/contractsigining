@@ -14,7 +14,7 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
   const [showConfig, setShowConfig] = useState(false);
   const [generatedLink, setGeneratedLink] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [previewInfo, setPreviewInfo] = useState<{ url: string, name: string } | null>(null);
 
   const [formData, setFormData] = useState<VendorDetails>({
     exhibitorType: '',
@@ -143,7 +143,11 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
 
   const handleFixtureChange = (index: number, field: string, value: any) => {
     const newFixtures = [...formData.selectedFixtures];
-    newFixtures[index] = { ...newFixtures[index], [field]: value };
+    if (field === 'type' && value === '2 Accessory Shelves (Stacked)') {
+      newFixtures[index] = { ...newFixtures[index], type: value, quantity: 2 };
+    } else {
+      newFixtures[index] = { ...newFixtures[index], [field]: value };
+    }
     setFormData(prev => ({ ...prev, selectedFixtures: newFixtures }));
   };
 
@@ -187,6 +191,8 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
       }
       if (!brand.instagram?.trim()) {
         newErrors[`brandInstagram_${idx}`] = "Instagram handle is required";
+      } else if (!brand.instagram.startsWith('@')) {
+        newErrors[`brandInstagram_${idx}`] = "Instagram handle must start with @";
       }
     });
 
@@ -218,6 +224,11 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
     formData.selectedFixtures.forEach((fixture, idx) => {
       if (fixture.quantity < 0) {
         newErrors[`fixtureQty_${idx}`] = "Quantity cannot be negative";
+      }
+      // Check for leading zeros via input raw value check
+      const input = document.getElementById(`fixtureQty_${idx}`) as HTMLInputElement;
+      if (input && input.value.length > 1 && input.value.startsWith('0')) {
+        newErrors[`fixtureQty_${idx}`] = "Leading zeros are not allowed. Please enter a valid number.";
       }
     });
 
@@ -586,7 +597,7 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
                               value={contact.phone}
                               onChange={(e) => {
                                 const val = e.target.value;
-                                if (!/^\d*$/.test(val.replace(/\D/g, ''))) return; // Only allow digits
+                                if (val !== '' && !/^\d+$/.test(val)) return; // Strictly only allow digits
                                 handleContactChange(idx, 'phone', val);
                                 if (errors[`contactPhone_${idx}`]) setErrors(prev => ({ ...prev, [`contactPhone_${idx}`]: '' }));
                               }}
@@ -796,7 +807,7 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
                         {FIXTURE_IMAGES[fix.type] && (
                           <button
                             type="button"
-                            onClick={() => setPreviewImage(FIXTURE_IMAGES[fix.type])}
+                            onClick={() => setPreviewInfo({ url: FIXTURE_IMAGES[fix.type], name: fix.type })}
                             className="absolute right-10 top-1/2 -translate-y-1/2 p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-full transition-all"
                             title="Preview Image"
                           >
@@ -807,7 +818,9 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
                       <div className="flex flex-col">
                         <input
                           type="number"
-                          className="w-20 px-3 py-1.5 border rounded text-sm"
+                          id={`fixtureQty_${idx}`}
+                          disabled={fix.type === '2 Accessory Shelves (Stacked)'}
+                          className={`w-20 px-3 py-1.5 border rounded text-sm ${fix.type === '2 Accessory Shelves (Stacked)' ? 'bg-slate-100 text-slate-500' : ''}`}
                           value={fix.quantity}
                           max={999}
                           min={0}
@@ -817,7 +830,6 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
                             }
                           }}
                           onChange={(e) => handleFixtureChange(idx, 'quantity', parseInt(e.target.value) || 0)}
-                          id={`fixtureQty_${idx}`}
                         />
                         {errors[`fixtureQty_${idx}`] && <p className="text-red-500 text-[10px] mt-0.5 whitespace-nowrap">{errors[`fixtureQty_${idx}`]}</p>}
                       </div>
@@ -916,26 +928,26 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
       </form>
       {/* Fixture Preview Modal */}
       {
-        previewImage && (
+        previewInfo && (
           <div
             className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200"
-            onClick={() => setPreviewImage(null)}
+            onClick={() => setPreviewInfo(null)}
           >
             <div
               className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden relative animate-in zoom-in-95 duration-200"
               onClick={e => e.stopPropagation()}
             >
               <button
-                onClick={() => setPreviewImage(null)}
+                onClick={() => setPreviewInfo(null)}
                 className="absolute top-4 right-4 p-2 bg-white/80 hover:bg-white rounded-full text-slate-500 hover:text-red-500 shadow-sm transition-all z-10"
               >
                 <X className="w-5 h-5" />
               </button>
               <div className="p-1 bg-slate-50">
-                <img src={previewImage} alt="Fixture Preview" className="w-full h-auto object-contain max-h-[70vh] rounded-xl" />
+                <img src={previewInfo.url} alt={previewInfo.name} className="w-full h-auto object-contain max-h-[70vh] rounded-xl" />
               </div>
               <div className="p-4 text-center border-t">
-                <p className="text-sm font-bold text-slate-900">Fixture Reference Image</p>
+                <p className="text-sm font-bold text-slate-900">{previewInfo.name}</p>
                 <p className="text-xs text-slate-500">Standard design configuration</p>
               </div>
             </div>

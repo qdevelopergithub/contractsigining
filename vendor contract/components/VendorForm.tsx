@@ -58,7 +58,7 @@ const VendorForm: React.FC<VendorFormProps> = ({
   processingText = "Generating Contract..."
 }) => {
   const [errors, setErrors] = React.useState<Record<string, string>>({});
-  const [previewImage, setPreviewImage] = React.useState<string | null>(null);
+  const [previewInfo, setPreviewInfo] = React.useState<{ url: string, name: string } | null>(null);
 
   const validate = (): { isValid: boolean, currentErrors: Record<string, string> } => {
     const newErrors: Record<string, string> = {};
@@ -77,6 +77,8 @@ const VendorForm: React.FC<VendorFormProps> = ({
       }
       if (!brand.instagram?.trim()) {
         newErrors[`brandInstagram_${idx}`] = "Instagram Handle is required";
+      } else if (!brand.instagram.startsWith('@')) {
+        newErrors[`brandInstagram_${idx}`] = "Instagram handle must start with @";
       }
     });
 
@@ -108,6 +110,11 @@ const VendorForm: React.FC<VendorFormProps> = ({
     data.selectedFixtures.forEach((fixture, idx) => {
       if (fixture.quantity <= 0) {
         newErrors[`fixtureQty_${idx}`] = "Quantity must be at least 1";
+      }
+      // Check for leading zeros via input raw value check
+      const input = document.getElementById(`fixtureQty_${idx}`) as HTMLInputElement;
+      if (input && input.value.length > 1 && input.value.startsWith('0')) {
+        newErrors[`fixtureQty_${idx}`] = "Leading zeros are not allowed. Please enter a valid number.";
       }
     });
 
@@ -227,7 +234,11 @@ const VendorForm: React.FC<VendorFormProps> = ({
 
   const handleFixtureChange = (index: number, field: keyof SelectedFixture, value: any) => {
     const newFixtures = [...data.selectedFixtures];
-    newFixtures[index] = { ...newFixtures[index], [field]: value };
+    if (field === 'type' && value === FixtureType.ACCESSORY_SHELVES_STACKED) {
+      newFixtures[index] = { ...newFixtures[index], type: value, quantity: 2 };
+    } else {
+      newFixtures[index] = { ...newFixtures[index], [field]: value };
+    }
     onChange({ ...data, selectedFixtures: newFixtures });
   };
 
@@ -489,7 +500,7 @@ const VendorForm: React.FC<VendorFormProps> = ({
                             value={contact.phone}
                             onChange={(e) => {
                               const val = e.target.value;
-                              if (!/^\d*$/.test(val.replace(/\D/g, ''))) return; // Only allow digits
+                              if (val !== '' && !/^\d+$/.test(val)) return; // Strictly only allow digits
                               handleContactChange(idx, 'phone', val);
                               if (errors[`contactPhone_${idx}`]) setErrors(prev => ({ ...prev, [`contactPhone_${idx}`]: '' }));
                             }}
@@ -708,7 +719,7 @@ const VendorForm: React.FC<VendorFormProps> = ({
                           {FIXTURE_IMAGES[fix.type] && (
                             <button
                               type="button"
-                              onClick={() => setPreviewImage(FIXTURE_IMAGES[fix.type])}
+                              onClick={() => setPreviewInfo({ url: FIXTURE_IMAGES[fix.type], name: fix.type })}
                               className="absolute right-10 top-1/2 -translate-y-1/2 p-2 text-accent hover:bg-blue-50 rounded-full transition-all"
                               title="Preview Image"
                             >
@@ -726,6 +737,7 @@ const VendorForm: React.FC<VendorFormProps> = ({
                             type="number"
                             min="1"
                             value={fix.quantity}
+                            disabled={fix.type === FixtureType.ACCESSORY_SHELVES_STACKED}
                             onChange={(e) => handleFixtureChange(idx, 'quantity', parseInt(e.target.value) || 0)}
                             max={999}
                             onInput={(e) => {
@@ -733,7 +745,7 @@ const VendorForm: React.FC<VendorFormProps> = ({
                                 e.currentTarget.value = e.currentTarget.value.slice(0, 3);
                               }
                             }}
-                            className={`w-full pl-10 pr-4 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent ${errors[`fixtureQty_${idx}`] ? 'border-red-500 ring-1 ring-red-500' : 'border-slate-200'}`}
+                            className={`w-full pl-10 pr-4 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent ${fix.type === FixtureType.ACCESSORY_SHELVES_STACKED ? 'bg-slate-100 text-slate-500' : ''} ${errors[`fixtureQty_${idx}`] ? 'border-red-500 ring-1 ring-red-500' : 'border-slate-200'}`}
                             id={`fixtureQty_${idx}`}
                           />
                         </div>
@@ -828,26 +840,26 @@ const VendorForm: React.FC<VendorFormProps> = ({
       )}
 
       {/* Fixture Preview Modal */}
-      {previewImage && (
+      {previewInfo && (
         <div
           className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200"
-          onClick={() => setPreviewImage(null)}
+          onClick={() => setPreviewInfo(null)}
         >
           <div
             className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden relative animate-in zoom-in-95 duration-200"
             onClick={e => e.stopPropagation()}
           >
             <button
-              onClick={() => setPreviewImage(null)}
+              onClick={() => setPreviewInfo(null)}
               className="absolute top-4 right-4 p-2 bg-white/80 hover:bg-white rounded-full text-slate-500 hover:text-red-500 shadow-sm transition-all z-10"
             >
               <X className="w-5 h-5" />
             </button>
             <div className="p-1 bg-slate-50">
-              <img src={previewImage} alt="Fixture Preview" className="w-full h-auto object-contain max-h-[70vh] rounded-xl" />
+              <img src={previewInfo.url} alt={previewInfo.name} className="w-full h-auto object-contain max-h-[70vh] rounded-xl" />
             </div>
             <div className="p-4 text-center border-t">
-              <p className="text-sm font-bold text-slate-900">Fixture Reference Image</p>
+              <p className="text-sm font-bold text-slate-900">{previewInfo.name}</p>
               <p className="text-xs text-slate-500">Standard design configuration</p>
             </div>
           </div>
