@@ -90,7 +90,7 @@ app.post('/api/contracts/draft', async (req, res) => {
     // Formatting Brands
     const brandsList = (req.body.brands || [])
       .filter(b => b.brandName && b.brandName.trim() !== '')
-      .map(b => `- Brand: ${b.brandName}${b.website ? ` (Website: ${b.website})` : ''}`)
+      .map(b => `- Brand: ${b.brandName}${b.website ? ` (Website: ${b.website})` : ''}${b.instagram ? ` (Instagram: ${b.instagram})` : ''}`)
       .join('\n') || `- Brand: ${req.body.brandName || 'N/A'}`;
 
     // Formatting Contacts

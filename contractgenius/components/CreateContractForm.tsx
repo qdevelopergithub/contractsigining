@@ -180,8 +180,13 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
 
     formData.brands.forEach((brand, idx) => {
       if (!brand.brandName?.trim()) newErrors[`brandName_${idx}`] = "Brand Name is required";
-      if (brand.website?.trim() && !/^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/.test(brand.website)) {
+      if (!brand.website?.trim()) {
+        newErrors[`brandWebsite_${idx}`] = "Website is required";
+      } else if (!/^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/.test(brand.website)) {
         newErrors[`brandWebsite_${idx}`] = "Invalid Website URL";
+      }
+      if (!brand.instagram?.trim()) {
+        newErrors[`brandInstagram_${idx}`] = "Instagram handle is required";
       }
     });
 
@@ -480,7 +485,7 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
                           </div>
                         )}
                         <div>
-                          <label className={labelClass}>Website</label>
+                          <label className={labelClass}>Website <span className="text-red-500">*</span></label>
                           <div className="relative">
                             <Globe className={iconClass} />
                             <input
@@ -498,17 +503,22 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
                           {errors[`brandWebsite_${idx}`] && <p className="text-red-500 text-xs mt-1">{errors[`brandWebsite_${idx}`]}</p>}
                         </div>
                         <div>
-                          <label className={labelClass}>Instagram</label>
+                          <label className={labelClass}>Instagram <span className="text-red-500">*</span></label>
                           <div className="relative">
                             <Instagram className={iconClass} />
                             <input
                               type="text"
                               value={brand.instagram}
-                              onChange={(e) => handleBrandChange(idx, 'instagram', e.target.value)}
-                              className={inputClass}
+                              onChange={(e) => {
+                                handleBrandChange(idx, 'instagram', e.target.value);
+                                if (errors[`brandInstagram_${idx}`]) setErrors(prev => ({ ...prev, [`brandInstagram_${idx}`]: '' }));
+                              }}
+                              className={`${inputClass} ${errors[`brandInstagram_${idx}`] ? 'border-red-500 ring-2 ring-red-100' : ''}`}
                               placeholder="@username"
+                              id={`brandInstagram_${idx}`}
                             />
                           </div>
+                          {errors[`brandInstagram_${idx}`] && <p className="text-red-500 text-xs mt-1">{errors[`brandInstagram_${idx}`]}</p>}
                         </div>
                       </div>
                     </div>
