@@ -257,8 +257,12 @@ const VendorForm: React.FC<VendorFormProps> = ({
 
   const handleFixtureChange = (index: number, field: keyof SelectedFixture, value: any) => {
     const newFixtures = [...data.selectedFixtures];
-    if (field === 'type' && value === FixtureType.ACCESSORY_SHELVES_STACKED) {
-      newFixtures[index] = { ...newFixtures[index], type: value, quantity: 2 };
+    if (field === 'type') {
+      if (value === FixtureType.ACCESSORY_SHELVES_STACKED) {
+        newFixtures[index] = { ...newFixtures[index], type: value, quantity: 2 };
+      } else {
+        newFixtures[index] = { ...newFixtures[index], type: value, quantity: 1 };
+      }
     } else if (field === 'quantity' && newFixtures[index].type === FixtureType.ACCESSORY_SHELVES_STACKED) {
       newFixtures[index] = { ...newFixtures[index], [field]: Math.max(2, value) };
     } else {
