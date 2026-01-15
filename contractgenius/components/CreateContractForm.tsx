@@ -177,6 +177,8 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
     const newFixtures = [...formData.selectedFixtures];
     if (field === 'type' && value === '2 Accessory Shelves (Stacked)') {
       newFixtures[index] = { ...newFixtures[index], type: value, quantity: 2 };
+    } else if (field === 'quantity' && newFixtures[index].type === '2 Accessory Shelves (Stacked)') {
+      newFixtures[index] = { ...newFixtures[index], [field]: Math.max(2, value) };
     } else {
       newFixtures[index] = { ...newFixtures[index], [field]: value };
     }
@@ -864,7 +866,7 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
                           className="w-20 px-3 py-1.5 border rounded text-sm"
                           value={fix.quantity}
                           max={999}
-                          min={0}
+                          min={fix.type === '2 Accessory Shelves (Stacked)' ? 2 : 0}
                           onInput={(e) => {
                             if (e.currentTarget.value.length > 3) {
                               e.currentTarget.value = e.currentTarget.value.slice(0, 3);
