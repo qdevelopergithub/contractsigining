@@ -91,6 +91,15 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
     const newBrands = [...formData.brands];
     newBrands[index] = { ...newBrands[index], [field]: value };
     setFormData(prev => ({ ...prev, brands: newBrands }));
+
+    const errorKey = field === 'brandName' ? `brandName_${index}` : field === 'website' ? `brandWebsite_${index}` : field === 'instagram' ? `brandInstagram_${index}` : '';
+    if (errorKey && errors[errorKey]) {
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[errorKey];
+        return newErrors;
+      });
+    }
   };
 
   const addBrandRow = () => {
@@ -112,6 +121,15 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
       updates.email = value;
     }
     setFormData(prev => ({ ...prev, ...updates }));
+
+    const errorKey = field === 'phone' ? `contactPhone_${index}` : field === 'name' ? `contactName_${index}` : field === 'email' ? `contactEmail_${index}` : '';
+    if (errorKey && errors[errorKey]) {
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[errorKey];
+        return newErrors;
+      });
+    }
   };
 
   const addContactRow = () => {
@@ -126,7 +144,21 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    const newData: any = { ...formData, [name]: value };
+
+    if (name === 'boothSize') {
+      newData.finalBoothSize = value;
+      newData.selectedFixtures = [{ type: 'Rolling Rack', quantity: 1 }];
+    }
+
+    setFormData(newData);
+    if (errors[name]) {
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[name];
+        return newErrors;
+      });
+    }
   };
 
   const saveConfig = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -149,6 +181,16 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
       newFixtures[index] = { ...newFixtures[index], [field]: value };
     }
     setFormData(prev => ({ ...prev, selectedFixtures: newFixtures }));
+
+    // Clear error
+    const errorKey = field === 'quantity' || field === 'type' ? `fixtureQty_${index}` : '';
+    if (errorKey && errors[errorKey]) {
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[errorKey];
+        return newErrors;
+      });
+    }
   };
 
   const addFixtureRow = () => {
@@ -819,8 +861,7 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
                         <input
                           type="number"
                           id={`fixtureQty_${idx}`}
-                          disabled={fix.type === '2 Accessory Shelves (Stacked)'}
-                          className={`w-20 px-3 py-1.5 border rounded text-sm ${fix.type === '2 Accessory Shelves (Stacked)' ? 'bg-slate-100 text-slate-500' : ''}`}
+                          className="w-20 px-3 py-1.5 border rounded text-sm"
                           value={fix.quantity}
                           max={999}
                           min={0}

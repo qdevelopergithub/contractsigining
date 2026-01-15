@@ -184,19 +184,35 @@ const VendorForm: React.FC<VendorFormProps> = ({
         newData.customBoothSize = '';
       }
 
-      // If switching booth size, we might need to adjust the first fixture quantity to match quota if it's the only one
-      if (newData.selectedFixtures.length === 1) {
-        newData.selectedFixtures[0].quantity = 1;
+      // If switching booth size, reset fixtures to 1 row with quantity 1
+      if (field === 'boothSize') {
+        newData.selectedFixtures = [{ type: FixtureType.ROLLING_RACK, quantity: 1 }];
       }
     }
 
     onChange(newData);
+    if (errors[field as string]) {
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[field as string];
+        return newErrors;
+      });
+    }
   };
 
   const handleBrandChange = (index: number, field: keyof BrandInfo, value: string) => {
     const newBrands = [...data.brands];
     newBrands[index] = { ...newBrands[index], [field]: value };
     onChange({ ...data, brands: newBrands });
+
+    const errorKey = field === 'brandName' ? `brandName_${index}` : field === 'website' ? `brandWebsite_${index}` : field === 'instagram' ? `brandInstagram_${index}` : '';
+    if (errorKey && errors[errorKey]) {
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[errorKey];
+        return newErrors;
+      });
+    }
   };
 
   const addBrandRow = () => {
@@ -220,6 +236,15 @@ const VendorForm: React.FC<VendorFormProps> = ({
     }
 
     onChange({ ...data, ...updates });
+
+    const errorKey = field === 'phone' ? `contactPhone_${index}` : field === 'name' ? `contactName_${index}` : field === 'email' ? `contactEmail_${index}` : '';
+    if (errorKey && errors[errorKey]) {
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[errorKey];
+        return newErrors;
+      });
+    }
   };
 
   const addContactRow = () => {
@@ -240,6 +265,15 @@ const VendorForm: React.FC<VendorFormProps> = ({
       newFixtures[index] = { ...newFixtures[index], [field]: value };
     }
     onChange({ ...data, selectedFixtures: newFixtures });
+
+    const errorKey = field === 'quantity' || field === 'type' ? `fixtureQty_${index}` : '';
+    if (errorKey && errors[errorKey]) {
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[errorKey];
+        return newErrors;
+      });
+    }
   };
 
   const addFixtureRow = () => {
@@ -737,7 +771,6 @@ const VendorForm: React.FC<VendorFormProps> = ({
                             type="number"
                             min="1"
                             value={fix.quantity}
-                            disabled={fix.type === FixtureType.ACCESSORY_SHELVES_STACKED}
                             onChange={(e) => handleFixtureChange(idx, 'quantity', parseInt(e.target.value) || 0)}
                             max={999}
                             onInput={(e) => {
@@ -745,7 +778,7 @@ const VendorForm: React.FC<VendorFormProps> = ({
                                 e.currentTarget.value = e.currentTarget.value.slice(0, 3);
                               }
                             }}
-                            className={`w-full pl-10 pr-4 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent ${fix.type === FixtureType.ACCESSORY_SHELVES_STACKED ? 'bg-slate-100 text-slate-500' : ''} ${errors[`fixtureQty_${idx}`] ? 'border-red-500 ring-1 ring-red-500' : 'border-slate-200'}`}
+                            className={`w-full pl-10 pr-4 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent ${errors[`fixtureQty_${idx}`] ? 'border-red-500 ring-1 ring-red-500' : 'border-slate-200'}`}
                             id={`fixtureQty_${idx}`}
                           />
                         </div>
