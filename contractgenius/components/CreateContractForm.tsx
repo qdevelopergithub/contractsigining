@@ -173,8 +173,12 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
 
   const handleFixtureChange = (index: number, field: string, value: any) => {
     const newFixtures = [...formData.selectedFixtures];
-    if (field === 'type' && value === '2 Accessory Shelves (Stacked)') {
-      newFixtures[index] = { ...newFixtures[index], type: value, quantity: 2 };
+    if (field === 'type') {
+      if (value === '2 Accessory Shelves (Stacked)') {
+        newFixtures[index] = { ...newFixtures[index], type: value, quantity: 2 };
+      } else {
+        newFixtures[index] = { ...newFixtures[index], type: value, quantity: 1 };
+      }
     } else if (field === 'quantity' && newFixtures[index].type === '2 Accessory Shelves (Stacked)') {
       newFixtures[index] = { ...newFixtures[index], [field]: Math.max(2, value) };
     } else {
