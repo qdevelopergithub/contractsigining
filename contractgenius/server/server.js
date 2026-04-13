@@ -5,9 +5,14 @@
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
-const Groq = require('groq-sdk');
 const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
 const { uploadToDrive } = require('./driveService');
+const qbService = require('./quickbooksService');
+const sheetsService = require('./sheetsService');
+const stripeService = require('./stripeService');
+const inventoryService = require('./inventoryService');
+const emailService = require('./emailService');
+const reminderService = require('./reminderService');
 
 dotenv.config();
 
@@ -39,48 +44,38 @@ app.use(cors({
     }
   }
 }));
+// Stripe webhook needs raw body - must be before express.json()
+app.use('/api/webhooks/stripe', express.raw({ type: 'application/json' }));
 app.use(express.json({ limit: '10mb' }));
 
-// In-memory storage (Replace with Database for production)
-const fs = require('fs');
-const path = require('path');
+// External persistence is now handled by Google Sheets Service
 
-// Persistent Storage Setup
-const DB_FILE = path.join(__dirname, 'contracts.json');
-let contractsDb = new Map();
-
-// Load existing data
-if (fs.existsSync(DB_FILE)) {
-  try {
-    const data = fs.readFileSync(DB_FILE, 'utf8');
-    contractsDb = new Map(JSON.parse(data));
-    console.log(`Loaded ${contractsDb.size} contracts from storage.`);
-  } catch (e) {
-    console.error("Failed to load contracts DB:", e);
-  }
-}
-
-const saveContracts = () => {
-  try {
-    fs.writeFileSync(DB_FILE, JSON.stringify(Array.from(contractsDb.entries()), null, 2));
-  } catch (e) {
-    console.error("Failed to save contracts DB:", e);
-  }
-};
-
-
-// Initialize AI
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 // Root Health Check
 app.get('/', (req, res) => {
   res.send('✅ Contract Genius API is running gracefully in the cloud!');
 });
 
+// --- QuickBooks OAuth Routes ---
+app.get('/auth/authUri', (req, res) => {
+  const uri = qbService.getAuthUri();
+  res.redirect(uri);
+});
+
+app.get('/auth/callback', async (req, res) => {
+  try {
+    const authResponse = await qbService.createToken(req.url);
+    res.send('✅ QuickBooks Authentication Successful! You can close this window.');
+  } catch (e) {
+    console.error('QB Auth Callback Error:', e);
+    res.status(500).send('❌ QuickBooks Authentication Failed.');
+  }
+});
+
 // POST /api/contracts/draft
 app.post('/api/contracts/draft', async (req, res) => {
   try {
-    const { name, email, address, company, exhibitorType, boothSize, finalBoothSize, customBoothSize, customBoothRequirements, fixture, fixtureQuantity, eventDate, specialRequirements, brandName, phone, selectedFixtures, categories, otherCategory, additionalContact } = req.body;
+    const { name, email, address, company, exhibitorType, boothSize, finalBoothSize, customBoothSize, customBoothRequirements, fixture, fixtureQuantity, eventDates, eventDate, specialRequirements, brandName, phone, selectedFixtures, categories, otherCategory, additionalContact } = req.body;
     console.log(`[Server] Draft Request - Company: ${company || req.body.companyName}, Categories: ${categories?.join(', ')}, OtherCategory: ${otherCategory}`);
 
     // 1. Generate Static Contract Template (NO AI)
@@ -124,6 +119,7 @@ Selected Fixtures:
 ${fixturesList}
 
 3. SPECIAL REQUIREMENTS & LOGISTICS
+Event Dates: ${eventDates ? (Array.isArray(eventDates) ? eventDates.join(', ') : eventDates) : (eventDate || "TBD")}
 Booth Customizations: ${customBoothRequirements || "None"}
 Special Requirements: ${specialRequirements || "None"}
 Additional Notes: ${req.body.notes || "None"}
@@ -156,7 +152,7 @@ Standard terms and conditions apply. The Vendor agrees to maintain appropriate i
         selectedFixtures: req.body.selectedFixtures || [],
         fixture: req.body.fixture,
         fixtureQuantity: req.body.fixtureQuantity,
-        eventDate: req.body.eventDate,
+        eventDates: req.body.eventDates || (req.body.eventDate ? [req.body.eventDate] : []),
         specialRequirements: req.body.specialRequirements || ''
       },
       vendor: { name, email, company }, // Legacy field for compatibility
@@ -165,14 +161,30 @@ Standard terms and conditions apply. The Vendor agrees to maintain appropriate i
       status: 'draft',
       createdAt: Date.now()
     };
-    contractsDb.set(contractId, contractData);
-    saveContracts();
-    console.log(`[Server] ✅ Contract ${contractId} created and saved to database`);
+    console.log(`[Server] ✅ Contract ${contractId} created successfully`);
 
-    // 3. Return contract ID to frontend
-    // Force use of the dedicated signing app URL (9kgu) for the magic link as requested by user
+    // 2.5 Aggregate Data to Google Sheets (Non-blocking)
+    sheetsService.appendContractRow(contractData).catch(err => {
+      console.error(`[Server] Non-fatal error aggregating to Google Sheets:`, err.message);
+    });
+
+    // 3. Define Magic Link for the vendor
     const signingAppUrl = process.env.SIGNING_APP_URL || "https://contractsigining-9kgu.vercel.app";
     const magicLink = `${signingAppUrl.replace(/\/$/, "")}/#/contract/${contractId}`;
+
+    // 4. Trigger Make.com Webhook (Automation Flow)
+    const MAKE_WEBHOOK_URL = process.env.MAKE_WEBHOOK_URL || "https://hook.us2.make.com/ihncxlrp5nekfz7h2kmy5hni4lv0ct6w";
+    fetch(MAKE_WEBHOOK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: "submit_vendor_data",
+        submissionLink: magicLink,
+        email: contractData.vendorDetails.email,
+        contractId: contractId,
+        company: contractData.vendorDetails.company
+      })
+    }).catch(err => console.error("[Server] Make.com Webhook Error (Draft):", err.message));
 
     res.json({
       success: true,
@@ -188,31 +200,37 @@ Standard terms and conditions apply. The Vendor agrees to maintain appropriate i
 });
 
 // GET /api/contracts/:id
-app.get('/api/contracts/:id', (req, res) => {
+app.get('/api/contracts/:id', async (req, res) => {
   const contractId = req.params.id;
-  const contract = contractsDb.get(contractId);
-
+  
   console.log(`[Server] GET /api/contracts/${contractId}`);
 
-  if (!contract) {
-    console.log(`[Server] ❌ Contract ${contractId} not found in database`);
-    return res.status(404).json({ success: false, message: "Contract not found" });
+  try {
+    const contract = await sheetsService.getContractById(contractId);
+
+    if (!contract) {
+      console.log(`[Server] ❌ Contract ${contractId} not found in Sheets`);
+      return res.status(404).json({ success: false, message: "Contract not found" });
+    }
+
+    console.log(`[Server] ✅ Contract ${contractId} found - Status: ${contract.status}`);
+
+    // Check if contract is already signed - reject access to prevent re-signing
+    if (contract.status === 'signed') {
+      console.log(`[Server] 🔒 Contract ${contractId} is already SIGNED - Link EXPIRED`);
+      return res.status(410).json({
+        success: false,
+        message: "This contract has already been signed. The link has expired.",
+        status: 'signed',
+        contractId: contractId
+      });
+    }
+
+    res.json(contract);
+  } catch (error) {
+    console.error(`[Server] Error fetching contract ${contractId}:`, error);
+    res.status(500).json({ success: false, message: "Internal server error" });
   }
-
-  console.log(`[Server] ✅ Contract ${contractId} found - Status: ${contract.status}`);
-
-  // Check if contract is already signed - reject access to prevent re-signing
-  if (contract.status === 'signed') {
-    console.log(`[Server] 🔒 Contract ${contractId} is already SIGNED - Link EXPIRED`);
-    return res.status(410).json({
-      success: false,
-      message: "This contract has already been signed. The link has expired.",
-      status: 'signed',
-      contractId: contractId
-    });
-  }
-
-  res.json(contract);
 });
 
 // POST /api/contracts/sign
@@ -220,13 +238,12 @@ app.post('/api/contracts/sign', async (req, res) => {
   try {
     const { contractId, signatureImageBase64, contractData } = req.body;
 
-    // CRITICAL: Try to get the existing contract from the database first to ensure status update persists
-    let contract = contractsDb.get(contractId);
+    // CRITICAL: Fetch existing contract from Google Sheets to ensure status update persists
+    let contract = await sheetsService.getContractById(contractId);
 
     if (!contract && contractData) {
-      console.log(`[Server] ⚠️ Contract ${contractId} not found, using provided contract data`);
+      console.log(`[Server] ⚠️ Contract ${contractId} not found in Sheets, using provided session data`);
       contract = contractData;
-      // Ensure the ID is set correctly if using provided data
       contract.id = contractId;
     }
 
@@ -346,12 +363,45 @@ app.post('/api/contracts/sign', async (req, res) => {
       // We don't fail the whole request if Drive upload fails, but we log it
     }
 
-    // Update Status
+    // Update Status in Sheets
     console.log(`[Server] 📝 Marking contract ${contractId} as SIGNED`);
-    contract.status = 'signed';
-    contractsDb.set(contractId, contract);
-    saveContracts();
-    console.log(`[Server] ✅ Contract ${contractId} saved to database - Link is now EXPIRED`);
+    contract.status = contract.vendorDetails?.depositAmount > 0 ? 'pending_deposit' : (contract.vendorDetails?.totalAmount > 0 ? 'pending_balance' : 'signed');
+    
+    await sheetsService.syncPaymentStatus(contractId, contract.status);
+    console.log(`[Server] ✅ Contract ${contractId} updated in Sheets - Status: ${contract.status}`);
+
+    // 5. QuickBooks Integration (Create Customer & Invoice)
+    try {
+      console.log(`[Server] Triggering QuickBooks Invoice Creation for ${contractId}`);
+      await qbService.processContractSignatureForQB(contract);
+    } catch (qbErr) {
+      console.error("[Server] QB processing failed, but contract is signed:", qbErr);
+    }
+
+    // 6. Deduct Inventory Stock in Google Sheets
+    const fixturesBooked = contract.vendorDetails?.selectedFixtures || [];
+    inventoryService.deductInventory(fixturesBooked).catch(e =>
+      console.error('[Server] Non-fatal inventory deduction error:', e.message)
+    );
+
+    // 7. Send Team Email Alert for New Signed Contract
+    emailService.sendContractSignedAlert(contract).catch(e =>
+      console.error('[Server] Non-fatal email alert error:', e.message)
+    );
+
+    // 8. Trigger Make.com Webhook for Signing Completion
+    const MAKE_WEBHOOK_URL = process.env.MAKE_WEBHOOK_URL || "https://hook.us2.make.com/ihncxlrp5nekfz7h2kmy5hni4lv0ct6w";
+    fetch(MAKE_WEBHOOK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: "contract_signed",
+        contractId: contractId,
+        company: vendor.company,
+        status: contract.status,
+        signedAt: new Date().toISOString()
+      })
+    }).catch(err => console.error("[Server] Make.com Webhook Error (Sign):", err.message));
 
     res.json({ success: true, message: "Contract signed and finalized" });
 
@@ -361,6 +411,62 @@ app.post('/api/contracts/sign', async (req, res) => {
   }
 });
 
+// POST /api/contracts/create-payment-session
+app.post('/api/contracts/create-payment-session', async (req, res) => {
+  try {
+    const { contractId, paymentType } = req.body;
+    const contract = contractsDb.get(contractId);
+    if (!contract) return res.status(404).json({ message: 'Contract not found' });
+
+    const sessionUrl = await stripeService.createPaymentSession(contract, paymentType || 'full');
+    if (!sessionUrl) return res.status(400).json({ message: 'Could not create payment session. Check STRIPE_SECRET_KEY.' });
+    
+    res.json({ success: true, paymentUrl: sessionUrl });
+  } catch (error) {
+    console.error('[Server] Stripe session error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// POST /api/webhooks/stripe — Listens for payment confirmations from Stripe
+app.post('/api/webhooks/stripe', async (req, res) => {
+  try {
+    const signature = req.headers['stripe-signature'];
+    const event = stripeService.handleStripeWebhook(req.body, signature);
+
+    if (event.type === 'checkout.session.completed') {
+      const session = event.data.object;
+      const contractId = session.metadata?.contractId;
+
+      if (contractId) {
+        // Update status to signed (fully paid)
+        await sheetsService.syncPaymentStatus(contractId, 'signed');
+        emailService.sendPaymentConfirmedAlert(contractId, session.metadata?.company || 'N/A', session.amount_total / 100).catch(e =>
+          console.error('[Server] Payment email alert error:', e.message)
+        );
+        console.log(`[Server] ✅ Stripe payment confirmed for ${contractId}`);
+      }
+    }
+    res.json({ received: true });
+  } catch (error) {
+    console.error('[Server] Stripe webhook error:', error);
+    res.status(400).json({ message: error.message });
+  }
+});
+
+// GET /api/inventory - Returns all fixture availability for the frontend form
+app.get('/api/inventory', async (req, res) => {
+  try {
+    const inventory = await inventoryService.getInventory();
+    res.json({ success: true, inventory });
+  } catch (error) {
+    console.error('[Server] Failed to load inventory:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+  // Start Automated Reminders
+  reminderService.initReminders();
 });
