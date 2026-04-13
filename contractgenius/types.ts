@@ -27,7 +27,7 @@ export interface VendorDetails {
   // Contacts
   contacts: ContactInfo[];
 
-  // Primary Contact (Legacy fields for single contact access if needed)
+  // Primary Contact
   email: string;
   address: string;
 
@@ -48,21 +48,33 @@ export interface VendorDetails {
   fixture: string;
   fixtureQuantity: number;
 
-  eventDate: string;
+  eventDates: string[]; // Changed from eventDate: string
   specialRequirements: string;
   notes?: string;
   paymentMode?: string;
+  
+  // Billing Fields
+  baseAmount?: number;
+  ccFee?: number;
+  totalAmount?: number;
+  depositAmount?: number;
 }
+
+export type ContractStatus = 'draft' | 'sent' | 'signed' | 'pending_deposit' | 'pending_balance' | 'paid' | 'void';
 
 export interface Contract {
   id: string;
   vendorDetails: VendorDetails;
-  status: 'draft' | 'sent' | 'signed';
+  status: ContractStatus;
   content: string; // Markdown content
   createdAt: number;
   signedAt?: number;
   signatureBase64?: string;
   magicLink: string;
+  
+  // Deadlines
+  depositDeadline?: number;
+  finalBalanceDeadline?: number;
 }
 
 export interface ApiResponse<T> {

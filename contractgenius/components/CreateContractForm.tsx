@@ -15,8 +15,24 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
   const [generatedLink, setGeneratedLink] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [previewInfo, setPreviewInfo] = useState<{ url: string, name: string } | null>(null);
+  const [inventory, setInventory] = useState<Array<{ fixtureName: string, available: number }>>([]);
 
-  const [formData, setFormData] = useState<VendorDetails>({
+  // Fetch Live Inventory on Mount
+  React.useEffect(() => {
+    const fetchInventory = async () => {
+      try {
+        const backendUrl = import.meta.env.VITE_BACKEND_URL || 'https://contract-genius-backend-93t6.onrender.com';
+        const res = await fetch(`${backendUrl}/api/inventory`);
+        const data = await res.json();
+        if (data.success) setInventory(data.inventory);
+      } catch (e) {
+        console.error('Failed to fetch inventory:', e);
+      }
+    };
+    fetchInventory();
+  }, []);
+
+  const [formData, setFormData] = useState<VendorDetails & { baseAmount?: number; ccFee?: number; totalAmount?: number }>({
     exhibitorType: '',
     brands: [{ brandName: '', showroomName: '', website: '', instagram: '' }],
     company: '',
@@ -36,6 +52,12 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
     notes: '',
   });
 
+  // PRICING CONFIGURATION (Editable placeholders)
+  const PRICING = {
+    BOOTH_BASE_PRICE: 1000, 
+    CUSTOM_BOOTH_MULTIPLIER: 250, // Per custom fixture
+    CC_FEE_PERCENTAGE: 0.0299 // 2.99%
+  };
 
   const CATEGORY_OPTIONS = [
     'Resort', 'Men’s', 'Beauty / Body', 'Swim', 'Footwear',
@@ -84,6 +106,28 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
 
   const currentTotalFixtures = formData.selectedFixtures.reduce((sum, f) => sum + f.quantity, 0);
   const totalQuota = calculateTotalQuota(formData.boothSize, formData.customBoothSize);
+
+  // Live Pricing Calculation
+  const getCalculatedPrices = () => {
+    let base = 0;
+    
+    // Calculate Booth Base Cost
+    if (formData.boothSize === "Custom Fixture") {
+      base = totalQuota * PRICING.CUSTOM_BOOTH_MULTIPLIER;
+    } else {
+      // Estimate cost by parsing the standard booth multiplier
+      const boothMatch = formData.boothSize.match(/([\d.]+)\s+Standard/);
+      const multiplier = boothMatch ? parseFloat(boothMatch[1]) : 1;
+      base = PRICING.BOOTH_BASE_PRICE * multiplier;
+    }
+
+    const ccFee = formData.paymentMode === 'Credit Card' ? base * PRICING.CC_FEE_PERCENTAGE : 0;
+    const total = base + ccFee;
+
+    return { base, ccFee, total };
+  };
+  
+  const currentPrices = getCalculatedPrices();
 
   const handleBrandChange = (index: number, field: keyof BrandInfo, value: string) => {
     const newBrands = [...formData.brands];
@@ -338,6 +382,12 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
         specialRequirements: formData.specialRequirements,
         notes: formData.notes,
         paymentMode: formData.paymentMode,
+
+        // Live Pricing Fields mapping to Contract
+        baseAmount: currentPrices.base,
+        ccFee: currentPrices.ccFee,
+        totalAmount: currentPrices.total,
+        depositAmount: 0 // Default 0 for now until deposit logic is required
       };
 
       // 2. Call backend to create contract and get ID
@@ -844,11 +894,19 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
                           onChange={(e) => handleFixtureChange(idx, 'type', e.target.value)}
                         >
                           {VALID_FIXTURES
-                            .filter(type => {
-                              if (type === 'Fitting Screen') return totalQuota >= 6;
-                              return true;
-                            })
-                            .map(type => <option key={type} value={type}>{type}</option>)}
+                            .map(type => {
+                              const invItem = inventory.find(i => i.fixtureName.toLowerCase() === type.toLowerCase());
+                              const isSoldOut = invItem && invItem.available <= 0;
+                              return (
+                                <option 
+                                  key={type} 
+                                  value={type} 
+                                  disabled={isSoldOut && fix.type !== type}
+                                >
+                                  {type} {isSoldOut ? '(SOLD OUT)' : invItem ? `(${invItem.available} left)` : ''}
+                                </option>
+                              );
+                            })}
                         </select>
                         {FIXTURE_IMAGES[fix.type] && (
                           <button
@@ -957,6 +1015,37 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
               </div>
             </div>
 
+            {/* Live Pricing Order Summary */}
+            <div className="bg-white rounded-xl shadow-sm border border-indigo-200 p-6 space-y-4 relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500"></div>
+              <h2 className="text-lg font-bold text-indigo-900 border-b border-indigo-100 pb-2 flex items-center gap-2">
+                <ShoppingCart className="w-5 h-5" />
+                Live Order Summary
+              </h2>
+              <div className="space-y-3 pt-2">
+                <div className="flex justify-between items-center text-sm text-gray-600">
+                  <span>Booth Allocation ({formData.finalBoothSize})</span>
+                  <span className="font-medium">${currentPrices.base.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                </div>
+                
+                {formData.paymentMode === 'Credit Card' && (
+                  <div className="flex justify-between items-center text-sm text-amber-600">
+                    <span>Credit Card Processing Fee (2.99%)</span>
+                    <span className="font-medium">${currentPrices.ccFee.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                )}
+                
+                <div className="pt-4 border-t border-gray-200 flex justify-between items-center bg-gray-50 -mx-6 px-6 py-4 mt-2">
+                  <span className="text-base font-bold text-gray-900">Total Estimated Cost</span>
+                  <span className="text-xl font-bold text-indigo-700">
+                    ${currentPrices.total.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+                <p className="text-xs text-gray-400 text-center mt-2">
+                  *This total will be reflected directly on your final contract draft.
+                </p>
+              </div>
+            </div>
 
             <div className="pt-4 sticky bottom-6 z-10">
               <button

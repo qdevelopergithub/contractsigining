@@ -14,8 +14,12 @@
     "express": "^4.19.2",
     "googleapis": "^169.0.0",
     "groq-sdk": "^0.37.0",
+    "intuit-oauth": "^4.2.2",
+    "node-cron": "^4.2.1",
+    "node-quickbooks": "^2.0.50",
     "nodemailer": "^6.9.13",
-    "pdf-lib": "^1.17.1"
+    "pdf-lib": "^1.17.1",
+    "stripe": "^22.0.1"
   },
   "devDependencies": {
     "nodemon": "^3.1.0"
