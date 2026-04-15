@@ -72,6 +72,45 @@ app.get('/auth/callback', async (req, res) => {
   }
 });
 
+// POST /api/contracts/create (Direct create from frontend)
+app.post('/api/contracts/create', async (req, res) => {
+  try {
+    const { contractId, vendorDetails, content } = req.body;
+    
+    if (!contractId || !vendorDetails) {
+      return res.status(400).json({ success: false, message: "Missing contractId or vendorDetails" });
+    }
+
+    console.log(`[Server] Creating contract: ${contractId}`);
+
+    const contractData = {
+      id: contractId,
+      vendorDetails: {
+        ...vendorDetails,
+        name: vendorDetails.contacts?.[0]?.name || vendorDetails.name || 'Vendor',
+        email: vendorDetails.contacts?.[0]?.email || vendorDetails.email
+      },
+      content: content,
+      text: content,
+      status: 'draft',
+      createdAt: Date.now()
+    };
+
+    // Save to Google Sheets
+    await sheetsService.appendContractRow(contractData);
+
+    res.json({
+      success: true,
+      message: "Contract created successfully",
+      contractId
+    });
+
+  } catch (error) {
+    console.error("[Server] Error creating contract:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // POST /api/contracts/draft
 app.post('/api/contracts/draft', async (req, res) => {
   try {
@@ -371,9 +410,10 @@ app.post('/api/contracts/sign', async (req, res) => {
     console.log(`[Server] ✅ Contract ${contractId} updated in Sheets - Status: ${contract.status}`);
 
     // 5. QuickBooks Integration (Create Customer & Invoice)
+    let qbInvoice = null;
     try {
       console.log(`[Server] Triggering QuickBooks Invoice Creation for ${contractId}`);
-      await qbService.processContractSignatureForQB(contract);
+      qbInvoice = await qbService.processContractSignatureForQB(contract);
     } catch (qbErr) {
       console.error("[Server] QB processing failed, but contract is signed:", qbErr);
     }
@@ -403,7 +443,15 @@ app.post('/api/contracts/sign', async (req, res) => {
       })
     }).catch(err => console.error("[Server] Make.com Webhook Error (Sign):", err.message));
 
-    res.json({ success: true, message: "Contract signed and finalized" });
+    res.json({ 
+      success: true, 
+      message: "Contract signed and finalized",
+      quickbooks: qbInvoice ? {
+        invoiceId: qbInvoice.Id,
+        invoiceNumber: qbInvoice.DocNumber,
+        customerName: vendor.company || vendor.name
+      } : null
+    });
 
   } catch (error) {
     console.error(error);
