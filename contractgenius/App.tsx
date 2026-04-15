@@ -64,7 +64,7 @@ const App: React.FC = () => {
               selectedFixtures: [],
               fixture: '',
               fixtureQuantity: 0,
-              eventDate: '',
+              eventDates: [],
               specialRequirements: ''
             },
             content: 'This contract has been signed.',

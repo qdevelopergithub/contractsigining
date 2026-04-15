@@ -3,7 +3,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { Contract } from '../types';
 import { getContractById, signContract } from '../services/storage';
 import { generateSignedPDF } from '../utils/pdfGenerator';
-import { Check, Download, PenTool, Loader2, AlertCircle, Lock } from 'lucide-react';
+import { Check, Download, PenTool, Loader2, AlertCircle, Lock, CreditCard } from 'lucide-react';
 
 interface Props {
     contractId: string;
@@ -16,6 +16,8 @@ export const VendorContractView: React.FC<Props> = ({ contractId, navigate }) =>
     const [processing, setProcessing] = useState(false);
     const [justSigned, setJustSigned] = useState(false);
     const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
+    const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
+    const [paymentLoading, setPaymentLoading] = useState(false);
 
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [isDrawing, setIsDrawing] = useState(false);
@@ -64,7 +66,7 @@ export const VendorContractView: React.FC<Props> = ({ contractId, navigate }) =>
                                 selectedFixtures: [],
                                 fixture: '',
                                 fixtureQuantity: 0,
-                                eventDate: '',
+                                eventDates: [],
                                 specialRequirements: ''
                             },
                             content: 'This contract has been signed.',
@@ -320,6 +322,32 @@ export const VendorContractView: React.FC<Props> = ({ contractId, navigate }) =>
                 {/* Sidebar Controls */}
                 <div className="w-full lg:w-96 flex flex-col gap-6">
 
+                    {(contract.vendorDetails.totalAmount ?? 0) > 0 && (
+                        <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-md">
+                            <h3 className="text-lg font-bold mb-4 text-gray-900 border-b pb-2">Billing Summary</h3>
+                            <div className="space-y-2 text-sm text-gray-600">
+                                <div className="flex justify-between">
+                                    <span>Base Amount:</span>
+                                    <span className="font-medium">${contract.vendorDetails.baseAmount?.toFixed(2) || '0.00'}</span>
+                                </div>
+                                <div className="flex justify-between text-xs text-gray-500">
+                                    <span>Credit Card Fee (2.99%):</span>
+                                    <span>${contract.vendorDetails.ccFee?.toFixed(2) || '0.00'}</span>
+                                </div>
+                                <div className="flex justify-between font-bold text-gray-900 pt-2 border-t mt-2">
+                                    <span>Total Amount:</span>
+                                    <span>${contract.vendorDetails.totalAmount?.toFixed(2) || '0.00'}</span>
+                                </div>
+                                {(contract.vendorDetails.depositAmount ?? 0) > 0 && (
+                                   <div className="flex justify-between text-indigo-700 bg-indigo-50 p-2 rounded mt-2 font-medium">
+                                       <span>Required Deposit:</span>
+                                       <span>${contract.vendorDetails.depositAmount?.toFixed(2)}</span>
+                                   </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
                     <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-xl flex-shrink-0">
                         <h3 className="text-lg font-bold mb-2 flex items-center text-gray-900">
                             <PenTool className="mr-2 text-indigo-600" />
@@ -376,6 +404,50 @@ export const VendorContractView: React.FC<Props> = ({ contractId, navigate }) =>
                     <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 text-xs text-blue-800">
                         <strong>Tip:</strong> You can scroll through the document preview on the left to read all terms before signing.
                     </div>
+
+                    {/* Pay Now Button - Shown after signing if billing amount is set */}
+                    {justSigned && (contract?.vendorDetails?.totalAmount ?? 0) > 0 && (
+                        <div className="bg-green-50 p-4 rounded-xl border border-green-200 space-y-3">
+                            <p className="text-sm font-semibold text-green-800">✅ Contract signed! Complete your payment to finalize your booth reservation.</p>
+                            {paymentUrl ? (
+                                <a
+                                    href={paymentUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center justify-center gap-2 w-full bg-green-600 hover:bg-green-700 text-white py-3 px-4 rounded-lg font-bold transition text-sm"
+                                >
+                                    <CreditCard size={16} />
+                                    Pay ${contract?.vendorDetails?.totalAmount?.toFixed(2)} Now
+                                </a>
+                            ) : (
+                                <button
+                                    disabled={paymentLoading}
+                                    onClick={async () => {
+                                        setPaymentLoading(true);
+                                        try {
+                                            const backendUrl = import.meta.env.VITE_BACKEND_URL || 'https://contract-genius-backend-93t6.onrender.com';
+                                            const res = await fetch(`${backendUrl}/api/contracts/create-payment-session`, {
+                                                method: 'POST',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({ contractId, paymentType: 'full' })
+                                            });
+                                            const data = await res.json();
+                                            if (data.paymentUrl) setPaymentUrl(data.paymentUrl);
+                                            else alert('Payment session could not be created. Please contact the organizer.');
+                                        } catch (e) {
+                                            console.error(e);
+                                        } finally {
+                                            setPaymentLoading(false);
+                                        }
+                                    }}
+                                    className="flex items-center justify-center gap-2 w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white py-3 px-4 rounded-lg font-bold transition text-sm"
+                                >
+                                    {paymentLoading ? <Loader2 className="animate-spin" size={16} /> : <CreditCard size={16} />}
+                                    {paymentLoading ? 'Preparing Payment...' : 'Proceed to Payment'}
+                                </button>
+                            )}
+                        </div>
+                    )}
                 </div>
 
             </div>
