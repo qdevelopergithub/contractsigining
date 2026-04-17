@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { Download, CheckCircle, Mail, PenTool, ExternalLink } from 'lucide-react';
+import { Download, CheckCircle, Mail, PenTool, ExternalLink, FileCheck } from 'lucide-react';
 import { AppStatus } from '../types';
 import SignatureCanvas from './SignatureCanvas';
 
@@ -9,6 +9,7 @@ interface ContractPreviewProps {
   status: AppStatus;
   userEmail: string;
   emailDeliveryStatus?: 'SUCCESS' | 'FAILED' | null;
+  qbInvoice?: { invoiceId: string; invoiceNumber: string; customerName: string } | null;
   onSignStart: () => void;
   onSignComplete: (signature: string) => void;
   onReset: () => void;
@@ -18,6 +19,7 @@ const ContractPreview: React.FC<ContractPreviewProps> = ({
   contractText, 
   status, 
   userEmail,
+  qbInvoice,
   emailDeliveryStatus,
   onSignStart, 
   onSignComplete,
@@ -161,6 +163,22 @@ const ContractPreview: React.FC<ContractPreviewProps> = ({
                     </div>
                  </div>
               </div>
+
+              {/* QuickBooks Invoice Info */}
+              {qbInvoice && (
+                <div className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                   <p className="font-bold text-blue-900 flex items-center gap-2">
+                      <FileCheck className="w-4 h-4" />
+                      QuickBooks Invoice Created
+                   </p>
+                   <p className="text-sm text-blue-800 mt-1">
+                      Invoice #: <span className="font-mono font-bold">{qbInvoice.invoiceNumber}</span>
+                   </p>
+                   <p className="text-xs text-blue-600 mt-1">
+                      Customer: {qbInvoice.customerName}
+                   </p>
+                </div>
+              )}
            </div>
         </div>
       </div>

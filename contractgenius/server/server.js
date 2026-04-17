@@ -2,9 +2,11 @@
  * CONTRACT GENIUS BACKEND API
  */
 
+const dotenv = require('dotenv');
+dotenv.config(); // Must be first — loads env vars before any service initializes
+
 const express = require('express');
 const cors = require('cors');
-const dotenv = require('dotenv');
 const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
 const { uploadToDrive } = require('./driveService');
 const qbService = require('./quickbooksService');
@@ -14,14 +16,13 @@ const inventoryService = require('./inventoryService');
 const emailService = require('./emailService');
 const reminderService = require('./reminderService');
 
-dotenv.config();
-
 const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Middleware
 const allowedOrigins = [
   'http://localhost:3002',
+  'http://localhost:3003',
   'http://localhost:3004',
   process.env.FRONTEND_URL,
   process.env.ADMIN_URL
@@ -64,8 +65,13 @@ app.get('/auth/authUri', (req, res) => {
 
 app.get('/auth/callback', async (req, res) => {
   try {
+      console.log('Realm ID (Company ID):', req);
+
     const authResponse = await qbService.createToken(req.url);
     res.send('✅ QuickBooks Authentication Successful! You can close this window.');
+        // 🔥 Extract important details
+    console.log('Access Token:', authResponse);
+  
   } catch (e) {
     console.error('QB Auth Callback Error:', e);
     res.status(500).send('❌ QuickBooks Authentication Failed.');
@@ -192,7 +198,13 @@ Standard terms and conditions apply. The Vendor agrees to maintain appropriate i
         fixture: req.body.fixture,
         fixtureQuantity: req.body.fixtureQuantity,
         eventDates: req.body.eventDates || (req.body.eventDate ? [req.body.eventDate] : []),
-        specialRequirements: req.body.specialRequirements || ''
+        specialRequirements: req.body.specialRequirements || '',
+        paymentMode: req.body.paymentMode || 'Credit Card',
+        notes: req.body.notes || '',
+        baseAmount: req.body.baseAmount || 0,
+        ccFee: req.body.ccFee || 0,
+        totalAmount: req.body.totalAmount || 0,
+        depositAmount: req.body.depositAmount || 0
       },
       vendor: { name, email, company }, // Legacy field for compatibility
       content: contractText,
@@ -209,6 +221,8 @@ Standard terms and conditions apply. The Vendor agrees to maintain appropriate i
 
     // 3. Define Magic Link for the vendor
     const signingAppUrl = process.env.SIGNING_APP_URL || "https://contractsigining-9kgu.vercel.app";
+    //  const signingAppUrl =  "http://localhost:3003";
+
     const magicLink = `${signingAppUrl.replace(/\/$/, "")}/#/contract/${contractId}`;
 
     // 4. Trigger Make.com Webhook (Automation Flow)
@@ -220,6 +234,7 @@ Standard terms and conditions apply. The Vendor agrees to maintain appropriate i
         action: "submit_vendor_data",
         submissionLink: magicLink,
         email: contractData.vendorDetails.email,
+        to: contractData.vendorDetails.email,
         contractId: contractId,
         company: contractData.vendorDetails.company
       })
@@ -430,18 +445,20 @@ app.post('/api/contracts/sign', async (req, res) => {
     );
 
     // 8. Trigger Make.com Webhook for Signing Completion
-    const MAKE_WEBHOOK_URL = process.env.MAKE_WEBHOOK_URL || "https://hook.us2.make.com/ihncxlrp5nekfz7h2kmy5hni4lv0ct6w";
-    fetch(MAKE_WEBHOOK_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: "contract_signed",
-        contractId: contractId,
-        company: vendor.company,
-        status: contract.status,
-        signedAt: new Date().toISOString()
-      })
-    }).catch(err => console.error("[Server] Make.com Webhook Error (Sign):", err.message));
+    // const MAKE_WEBHOOK_URL = process.env.MAKE_WEBHOOK_URL || "https://hook.us2.make.com/ihncxlrp5nekfz7h2kmy5hni4lv0ct6w";
+    // fetch(MAKE_WEBHOOK_URL, {
+    //   method: 'POST',
+    //   headers: { 'Content-Type': 'application/json' },
+    //   body: JSON.stringify({
+    //     action: "contract_signed",
+    //     contractId: contractId,
+    //     company: vendor.company,
+    //     email: contractData.vendorDetails.email,
+    //     to: contractData.vendorDetails.email,
+    //     status: contract.status,
+    //     signedAt: new Date().toISOString()
+    //   })
+    // }).catch(err => console.error("[Server] Make.com Webhook Error (Sign):", err.message));
 
     res.json({ 
       success: true, 
@@ -487,18 +504,62 @@ app.post('/api/webhooks/stripe', async (req, res) => {
       const contractId = session.metadata?.contractId;
 
       if (contractId) {
-        // Update status to signed (fully paid)
-        await sheetsService.syncPaymentStatus(contractId, 'signed');
+        // Update status to PAID in Google Sheets
+        await sheetsService.syncPaymentStatus(contractId, 'PAID');
         emailService.sendPaymentConfirmedAlert(contractId, session.metadata?.company || 'N/A', session.amount_total / 100).catch(e =>
           console.error('[Server] Payment email alert error:', e.message)
         );
-        console.log(`[Server] ✅ Stripe payment confirmed for ${contractId}`);
+        console.log(`[Server] ✅ Stripe payment confirmed for ${contractId} — status set to PAID`);
       }
     }
     res.json({ received: true });
   } catch (error) {
     console.error('[Server] Stripe webhook error:', error);
     res.status(400).json({ message: error.message });
+  }
+});
+
+// POST /api/webhooks/quickbooks — Listens for payment events from QuickBooks
+// QB sends a notification when a Payment entity is created/updated (invoice paid)
+app.post('/api/webhooks/quickbooks', express.json(), async (req, res) => {
+  try {
+    // Verify the request is genuinely from QuickBooks using the verifier token
+    const intuitSignature = req.headers['intuit-signature'];
+    const verifierToken = process.env.QB_WEBHOOK_VERIFIER_TOKEN;
+
+    if (verifierToken && intuitSignature) {
+      const crypto = require('crypto');
+      const expectedSig = crypto
+        .createHmac('sha256', verifierToken)
+        .update(JSON.stringify(req.body))
+        .digest('base64');
+
+      if (intuitSignature !== expectedSig) {
+        console.warn('[QB Webhook] ❌ Invalid signature — request rejected');
+        return res.status(401).json({ message: 'Invalid signature' });
+      }
+    }
+
+    // QB expects a 200 response immediately — process async
+    res.json({ received: true });
+
+    const notifications = req.body?.eventNotifications || [];
+
+    for (const notification of notifications) {
+      const entities = notification?.dataChangeEvent?.entities || [];
+
+      for (const entity of entities) {
+        // We only care about Payment creation (invoice paid)
+        if (entity.name === 'Payment' && entity.operation === 'Create') {
+          console.log(`[QB Webhook] Payment received: ID ${entity.id}`);
+          qbService.handleQBPaymentWebhook(entity.id).catch(e =>
+            console.error('[QB Webhook] Failed to process payment:', e.message)
+          );
+        }
+      }
+    }
+  } catch (error) {
+    console.error('[QB Webhook] Error:', error);
   }
 });
 
@@ -509,6 +570,27 @@ app.get('/api/inventory', async (req, res) => {
     res.json({ success: true, inventory });
   } catch (error) {
     console.error('[Server] Failed to load inventory:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// POST /api/contracts/:id/mark-paid — Manually mark a contract as PAID (admin use)
+app.post('/api/contracts/:id/mark-paid', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status = 'PAID' } = req.body; // allow custom status e.g. PARTIAL, REFUNDED
+
+    const validStatuses = ['PAID', 'PARTIAL', 'REFUNDED', 'PENDING', 'SIGNED'];
+    const normalizedStatus = status.toUpperCase();
+    if (!validStatuses.includes(normalizedStatus)) {
+      return res.status(400).json({ success: false, message: `Invalid status. Must be one of: ${validStatuses.join(', ')}` });
+    }
+
+    await sheetsService.syncPaymentStatus(id, normalizedStatus);
+    console.log(`[Server] ✅ Contract ${id} manually marked as ${normalizedStatus}`);
+    res.json({ success: true, contractId: id, status: normalizedStatus });
+  } catch (error) {
+    console.error('[Server] Mark-paid error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 });
