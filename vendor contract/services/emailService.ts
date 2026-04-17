@@ -18,7 +18,7 @@ const BACKEND_URL = rawBackendUrl.startsWith('http') ? rawBackendUrl : `https://
  * Sends the vendor data to Make.com Webhook via the backend.
  * This triggers the workflow to send the signing link to the vendor.
  */
-export const sendVendorData = async (formData: VendorFormData): Promise<boolean> => {
+export const sendVendorData = async (formData: VendorFormData, contractId?: string): Promise<boolean> => {
 
   console.log("[VendorApp] Step 1: Creating contract on server...");
 
@@ -40,9 +40,29 @@ export const sendVendorData = async (formData: VendorFormData): Promise<boolean>
       throw new Error(`Server error: ${response.status}`);
     }
 
-    const { contractId, magicLink } = await response.json();
-    console.log(`[VendorApp] ✅ Contract created: ${contractId}`);
+    const result = await response.json();
+    const finalContractId = contractId || result.contractId;
+    const magicLink = result.magicLink;
 
+    console.log(`[VendorApp] ✅ Contract created: ${finalContractId}`);
+
+    // Email is stored in contacts[0].email — formData.email may be undefined
+    const vendorName = formData.contacts?.[0]?.name || formData.companyName || 'Vendor';
+    const vendorEmailRaw =
+      formData?.contacts?.[0]?.email ??
+      (formData as any)?.email ??
+      "";
+
+    const vendorEmail = vendorEmailRaw.trim().toLowerCase();
+
+    if (!vendorEmail) {
+      console.error("[VendorApp] ❌ Email missing in formData:", formData);
+      throw new Error("Vendor email is required");
+    }
+
+    if (!vendorEmail.includes("@")) {
+      throw new Error("Invalid email format");
+    }
     // 2. Prepare Payload for Webhook with the REAL server link
     const payload = {
       action: "submit_vendor_data",
@@ -51,7 +71,6 @@ export const sendVendorData = async (formData: VendorFormData): Promise<boolean>
       contractId: contractId,
       data: formData
     };
-
     console.log("[VendorApp] Step 2: Sending REAL link to Make.com:", payload);
 
     if (!MAKE_WEBHOOK_URL || MAKE_WEBHOOK_URL.includes("INSERT_MAKE_WEBHOOK_URL_HERE")) {
@@ -62,14 +81,14 @@ export const sendVendorData = async (formData: VendorFormData): Promise<boolean>
       return true;
     }
 
-    // 3. Send POST request to Make.com
-    await fetch(MAKE_WEBHOOK_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+    // // 3. Send POST request to Make.com
+    // await fetch(MAKE_WEBHOOK_URL, {
+    //   method: "POST",
+    //   headers: { "Content-Type": "application/json" },
+    //   body: JSON.stringify(payload),
+    // });
 
-    console.log("[VendorApp] SUCCESS: Webhook triggered.");
+    // console.log("[VendorApp] SUCCESS: Webhook triggered.");
     return true;
   } catch (error) {
     console.error("[VendorApp] ❌ Failed to create contract or trigger webhook:", error);

@@ -418,6 +418,7 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
           action: "submit_vendor_data",
           submissionLink: magicLink,
           email: formData.email,
+          to: formData.email,
           contractId: contractId
         })
       }).catch(webhookError => console.error("Make.com Webhook Background Error:", webhookError));

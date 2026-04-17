@@ -13,6 +13,7 @@ const App: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [emailDeliveryStatus, setEmailDeliveryStatus] = useState<'SUCCESS' | 'FAILED' | null>(null);
   const [currentContractId, setCurrentContractId] = useState<string | null>(null);
+  const [qbInvoice, setQbInvoice] = useState<{ invoiceId: string; invoiceNumber: string; customerName: string } | null>(null);
 
   // Keep legacy hash checking if needed, but primary flow is now direct submission
   useEffect(() => {
@@ -34,7 +35,7 @@ const App: React.FC = () => {
             setAppStatus('EXPIRED');
             setError("This secure signing link has expired because the contract is already signed.");
             return null;
-          }
+          }https://${rawBackendUrl}
           if (!res.ok) throw new Error(`Server returned ${res.status}`);
           return res.json();
         })
@@ -128,11 +129,11 @@ const App: React.FC = () => {
     setContractText(null);
 
     try {
-      // 1. Generate Contract Text (Optional: keep if you want to ensure validity)
+      // 1. Generate Contract Text
       const result = await generateVendorContract(formData);
       setContractText(result);
 
-      // 2. Send Data to Make.com Webhook
+      // 2. Send Data to Backend (creates contract in Google Sheets + triggers email)
       setAppStatus('SENDING');
       try {
         await sendVendorData(formData);
@@ -175,7 +176,7 @@ const App: React.FC = () => {
       const rawBackendUrl = import.meta.env.VITE_BACKEND_URL || 'https://contract-genius-backend-93t6.onrender.com';
       const backendUrl = rawBackendUrl.startsWith('http') ? rawBackendUrl : `https://${rawBackendUrl}`;
 
-      await fetch(`${backendUrl}/api/contracts/sign`, {
+      const response = await fetch(`${backendUrl}/api/contracts/sign`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -188,6 +189,13 @@ const App: React.FC = () => {
           }
         })
       });
+
+      const result = await response.json();
+
+      if (result.quickbooks) {
+        console.log(`[App] 🎉 QuickBooks Invoice Created: ${result.quickbooks.invoiceNumber}`);
+        setQbInvoice(result.quickbooks);
+      }
 
       setAppStatus('SIGNED');
     } catch (e) {
@@ -291,6 +299,7 @@ const App: React.FC = () => {
                 status={appStatus}
                 userEmail={formData.email}
                 emailDeliveryStatus={emailDeliveryStatus}
+                qbInvoice={qbInvoice}
                 onSignStart={handleSignStart}
                 onSignComplete={handleSignComplete}
                 onReset={handleReset}
