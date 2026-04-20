@@ -217,22 +217,36 @@ Standard terms and conditions apply. The Vendor agrees to maintain appropriate i
     // 2.5 Aggregate Data to Google Sheets (Non-blocking)
    // NEW ✅ (Blocking + Error Handling)
 try {
+  const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS);
+  credentials.private_key = credentials.private_key.replace(/\\n/g, '\n');
+
+  console.log("👉 Using Service Account:", credentials.client_email);
+
   const sheetResponse = await sheetsService.appendContractRow(contractData);
 
-  // Optional validation (if your function returns something)
   if (!sheetResponse) {
-    throw new Error("Failed to append data to Google Sheets");
+    throw new Error("No response from Google Sheets");
   }
 
-  console.log(`[Server] ✅ Data successfully saved to Google Sheets`);
+  console.log("✅ Sheet Response:", sheetResponse?.data);
 
 } catch (sheetError) {
-  console.error(`[Server] ❌ Google Sheets Error:`, sheetError.message);
+  console.error("❌ FULL ERROR:", sheetError);
 
   return res.status(500).json({
     success: false,
     message: "Failed to save data to Google Sheets",
-    error: sheetError.message
+
+    // 👇 IMPORTANT DEBUG INFO (frontend me dikhega)
+    debug: {
+      errorMessage: sheetError.message,
+      fullError: sheetError?.response?.data || null,
+      serviceAccount: process.env.GOOGLE_CREDENTIALS
+        ? JSON.parse(process.env.GOOGLE_CREDENTIALS).client_email
+        : "No credentials found",
+      hasCredentials: !!process.env.GOOGLE_CREDENTIALS,
+      timestamp: new Date().toISOString()
+    }
   });
 }
 
