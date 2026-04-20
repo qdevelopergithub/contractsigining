@@ -217,7 +217,7 @@ Standard terms and conditions apply. The Vendor agrees to maintain appropriate i
     // 2.5 Aggregate Data to Google Sheets (Non-blocking)
    // NEW ✅ (Blocking + Error Handling)
 try {
-  const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS);
+  const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
   credentials.private_key = credentials.private_key.replace(/\\n/g, '\n');
 
   console.log("👉 Using Service Account:", credentials.client_email);
@@ -241,10 +241,10 @@ try {
     debug: {
       errorMessage: sheetError.message,
       fullError: sheetError?.response?.data || null,
-      serviceAccount: process.env.GOOGLE_CREDENTIALS
-        ? JSON.parse(process.env.GOOGLE_CREDENTIALS).client_email
+      serviceAccount: process.env.GOOGLE_SERVICE_ACCOUNT_JSON
+        ? JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON).client_email
         : "No credentials found",
-      hasCredentials: !!process.env.GOOGLE_CREDENTIALS,
+      hasCredentials: !!process.env.GOOGLE_SERVICE_ACCOUNT_JSON,
       timestamp: new Date().toISOString()
     }
   });
