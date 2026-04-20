@@ -425,7 +425,7 @@ export const VendorContractView: React.FC<Props> = ({ contractId, navigate }) =>
                                     onClick={async () => {
                                         setPaymentLoading(true);
                                         try {
-                                            const backendUrl = import.meta.env.VITE_BACKEND_URL || 'https://contract-genius-backend-93t6.onrender.com';
+                                            const backendUrl = import.meta.env.VITE_BACKEND_URL || 'https://contractsigining.onrender.com';
                                             const res = await fetch(`${backendUrl}/api/contracts/create-payment-session`, {
                                                 method: 'POST',
                                                 headers: { 'Content-Type': 'application/json' },

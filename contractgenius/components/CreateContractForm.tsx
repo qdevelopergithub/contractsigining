@@ -21,7 +21,7 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
   React.useEffect(() => {
     const fetchInventory = async () => {
       try {
-        const backendUrl = import.meta.env.VITE_BACKEND_URL || 'https://contract-genius-backend-93t6.onrender.com';
+        const backendUrl = import.meta.env.VITE_BACKEND_URL || 'https://contractsigining.onrender.com';
         const res = await fetch(`${backendUrl}/api/inventory`);
         const data = await res.json();
         if (data.success) setInventory(data.inventory);
@@ -391,7 +391,7 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
       };
 
       // 2. Call backend to create contract and get ID
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'https://contract-genius-backend-93t6.onrender.com';
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'https://contractsigining.onrender.com';
       const response = await fetch(`${backendUrl}/api/contracts/draft`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

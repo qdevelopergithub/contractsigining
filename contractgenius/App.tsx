@@ -40,7 +40,7 @@ const App: React.FC = () => {
 
       try {
         // Fetch contract from server
-        const backendUrl = import.meta.env.VITE_BACKEND_URL || 'https://contract-genius-backend-93t6.onrender.com';
+        const backendUrl = import.meta.env.VITE_BACKEND_URL || 'https://contractsigining.onrender.com';
         const response = await fetch(`${backendUrl}/api/contracts/${contractId}`);
 
         if (response.status === 410) {

@@ -26,7 +26,7 @@ const App: React.FC = () => {
       console.log(`[App] Loading contract from server: ${contractId}`);
 
       setAppStatus('GENERATING');
-      const rawBackendUrl = import.meta.env.VITE_BACKEND_URL || 'https://contract-genius-backend-93t6.onrender.com';
+      const rawBackendUrl = import.meta.env.VITE_BACKEND_URL || 'https://contractsigining.onrender.com';
       const backendUrl = rawBackendUrl.startsWith('http') ? rawBackendUrl : `https://${rawBackendUrl}`;
 
       fetch(`${backendUrl}/api/contracts/${contractId}`)
@@ -73,7 +73,7 @@ const App: React.FC = () => {
 
           // Check if expired
           if (parsedData.id) {
-            const rawBackendUrl = import.meta.env.VITE_BACKEND_URL || 'https://contract-genius-backend-93t6.onrender.com';
+            const rawBackendUrl = import.meta.env.VITE_BACKEND_URL || 'https://contractsigining.onrender.com';
             const backendUrl = rawBackendUrl.startsWith('http') ? rawBackendUrl : `https://${rawBackendUrl}`;
 
             fetch(`${backendUrl}/api/contracts/${parsedData.id}`)
@@ -173,7 +173,7 @@ const App: React.FC = () => {
       console.log(`[App] 📝 Signing contract with ID: ${activeContractId}`);
 
       // Call Backend to handle everything (PDF, Drive, Email)
-      const rawBackendUrl = import.meta.env.VITE_BACKEND_URL || 'https://contract-genius-backend-93t6.onrender.com';
+      const rawBackendUrl = import.meta.env.VITE_BACKEND_URL || 'https://contractsigining.onrender.com';
       const backendUrl = rawBackendUrl.startsWith('http') ? rawBackendUrl : `https://${rawBackendUrl}`;
 
       const response = await fetch(`${backendUrl}/api/contracts/sign`, {
