@@ -215,9 +215,26 @@ Standard terms and conditions apply. The Vendor agrees to maintain appropriate i
     console.log(`[Server] ✅ Contract ${contractId} created successfully`);
 
     // 2.5 Aggregate Data to Google Sheets (Non-blocking)
-    sheetsService.appendContractRow(contractData).catch(err => {
-      console.error(`[Server] Non-fatal error aggregating to Google Sheets:`, err.message);
-    });
+   // NEW ✅ (Blocking + Error Handling)
+try {
+  const sheetResponse = await sheetsService.appendContractRow(contractData);
+
+  // Optional validation (if your function returns something)
+  if (!sheetResponse) {
+    throw new Error("Failed to append data to Google Sheets");
+  }
+
+  console.log(`[Server] ✅ Data successfully saved to Google Sheets`);
+
+} catch (sheetError) {
+  console.error(`[Server] ❌ Google Sheets Error:`, sheetError.message);
+
+  return res.status(500).json({
+    success: false,
+    message: "Failed to save data to Google Sheets",
+    error: sheetError.message
+  });
+}
 
     // 3. Define Magic Link for the vendor
     const signingAppUrl = process.env.SIGNING_APP_URL || "https://contractsigining-9kgu.vercel.app";
