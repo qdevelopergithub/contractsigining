@@ -258,18 +258,29 @@ try {
 
     // 4. Trigger Make.com Webhook (Automation Flow)
     const MAKE_WEBHOOK_URL = process.env.MAKE_WEBHOOK_URL || "https://hook.us2.make.com/ihncxlrp5nekfz7h2kmy5hni4lv0ct6w";
-    fetch(MAKE_WEBHOOK_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: "submit_vendor_data",
-        submissionLink: magicLink,
-        email: contractData.vendorDetails.email,
-        to: contractData.vendorDetails.email,
-        contractId: contractId,
-        company: contractData.vendorDetails.company
-      })
-    }).catch(err => console.error("[Server] Make.com Webhook Error (Draft):", err.message));
+    const vd = contractData.vendorDetails || {};
+    const vendorEmail = (
+      vd.contacts?.[0]?.email ||
+      vd.email ||
+      ""
+    ).trim();
+    console.log(`[Server] Make.com webhook — resolved vendor email: "${vendorEmail}"`);
+    if (!vendorEmail) {
+      console.error("[Server] ⚠️ Skipping Make.com webhook — vendorDetails.email is empty");
+    } else {
+      fetch(MAKE_WEBHOOK_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: "submit_vendor_data",
+          submissionLink: magicLink,
+          email: vendorEmail,
+          to: vendorEmail,
+          contractId: contractId,
+          company: vd.company || vd.companyName || ''
+        })
+      }).catch(err => console.error("[Server] Make.com Webhook Error (Draft):", err.message));
+    }
 
     res.json({
       success: true,

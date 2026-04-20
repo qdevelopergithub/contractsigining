@@ -382,11 +382,17 @@ const processContractSignatureForQB = async (contractData) => {
 
     console.log(`[QB] ✅ Invoice ${invoice.Id} created`);
 
-    const customerEmail =
-      vendorData.contacts?.[0]?.email || vendorData.email;
+    // Trim to avoid whitespace-only strings passing the guard
+    const customerEmail = (
+      vendorData.contacts?.[0]?.email ||
+      vendorData.email ||
+      ""
+    ).trim();
+
+    console.log(`[QB] Customer email resolved: "${customerEmail}"`);
 
     if (!customerEmail) {
-      console.log("[QB] ❌ No email found");
+      console.error("[QB] ❌ No valid email found — skipping invoice send and webhook");
       return invoice;
     }
 
@@ -417,30 +423,30 @@ const processContractSignatureForQB = async (contractData) => {
     const submissionLink = refreshedInvoice.InvoiceLink;
 
     if (!submissionLink) {
-      console.error("[QB] ❌ InvoiceLink not found");
+      console.error("[QB] ❌ InvoiceLink not found on refreshed invoice — skipping webhook");
       return invoice;
     }
 
     console.log("[QB] 💳 Payment Link:", submissionLink);
 
-    // 🔥 STEP 5: SEND TO MAKE WEBHOOK
+    // STEP 5: SEND TO MAKE WEBHOOK
     const makeWebhookUrl = process.env.PAYMENT_INVOICE || 'https://hook.us2.make.com/ggaajop3yqmam0e6dk7j247oxiu1eueh';
+
+    const webhookPayload = {
+      action: 'invoice_payment',
+      email: customerEmail,
+      to: customerEmail,
+      submissionLink: submissionLink,
+      invoiceId: invoice.Id,
+      companyName: vendorData.company || vendorData.companyName || '',
+    };
+    console.log("[QB] Sending webhook payload:", JSON.stringify(webhookPayload));
 
     await fetch(makeWebhookUrl, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        action: 'invoice_payment',
-         email: customerEmail, 
-         to: customerEmail, 
-         submissionLink: submissionLink, 
-         invoiceId: invoice.Id, 
-         companyName: vendorData.company || '',
-      }),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(webhookPayload),
     });
-console.log("vendor details",vendorData)
     console.log("[QB] ✅ Webhook sent successfully");
 
     return invoice;
