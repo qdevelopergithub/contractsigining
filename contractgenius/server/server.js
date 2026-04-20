@@ -65,13 +65,11 @@ app.get('/auth/authUri', (req, res) => {
 
 app.get('/auth/callback', async (req, res) => {
   try {
-      console.log('Realm ID (Company ID):', req);
-
-    const authResponse = await qbService.createToken(req.url);
+    const realmId = req.query.realmId;
+    console.log('[QB] Auth callback realmId:', realmId);
+    const authResponse = await qbService.createToken(req.url, realmId);
+    console.log('[QB] Access Token saved:', authResponse);
     res.send('✅ QuickBooks Authentication Successful! You can close this window.');
-        // 🔥 Extract important details
-    console.log('Access Token:', authResponse);
-  
   } catch (e) {
     console.error('QB Auth Callback Error:', e);
     res.status(500).send('❌ QuickBooks Authentication Failed.');

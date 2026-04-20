@@ -22,14 +22,19 @@ let oauthToken = null;
 
 const loadToken = () => {
   try {
+    // 1. Try env var first (survives Render restarts/redeploys)
+    if (process.env.QB_OAUTH_TOKEN) {
+      oauthToken = JSON.parse(process.env.QB_OAUTH_TOKEN);
+      if (oauthToken.realmId) oauthClient.realmId = oauthToken.realmId;
+      console.log('[QB] Loaded OAuth token from QB_OAUTH_TOKEN env var');
+      return;
+    }
+    // 2. Fall back to file (local development)
     if (fs.existsSync(TOKEN_FILE)) {
       const data = fs.readFileSync(TOKEN_FILE, 'utf8');
       oauthToken = JSON.parse(data);
-      // Restore realmId onto the oauthClient so it's available for API calls
-      if (oauthToken.realmId) {
-        oauthClient.realmId = oauthToken.realmId;
-      }
-      console.log('[QB] Loaded stored OAuth token');
+      if (oauthToken.realmId) oauthClient.realmId = oauthToken.realmId;
+      console.log('[QB] Loaded OAuth token from file');
     }
   } catch (e) {
     console.error('[QB] Error loading token:', e.message);
@@ -39,7 +44,12 @@ const loadToken = () => {
 const saveToken = (token) => {
   try {
     oauthToken = token;
+    // Keep env var in sync so refreshed tokens are available in current process
+    process.env.QB_OAUTH_TOKEN = JSON.stringify(token);
+    // Also write to file for local development
     fs.writeFileSync(TOKEN_FILE, JSON.stringify(token, null, 2));
+    console.log('[QB] ✅ Token saved. To persist across Render restarts, set this env var in your Render dashboard:');
+    console.log(`[QB] QB_OAUTH_TOKEN=${JSON.stringify(token)}`);
   } catch (e) {
     console.error('[QB] Error saving token:', e.message);
   }
@@ -54,12 +64,13 @@ const getAuthUri = () => {
   });
 };
 
-const createToken = async (url) => {
+const createToken = async (url, realmId) => {
   try {
     const authResponse = await oauthClient.createToken(url);
     const token = authResponse.getJson();
-    // Persist realmId so it survives server restarts
-    token.realmId = oauthClient.realmId;
+    // realmId comes from the callback query param — persist it with the token
+    token.realmId = realmId || oauthClient.realmId;
+    if (token.realmId) oauthClient.realmId = token.realmId;
     saveToken(token);
     console.log(`[QB] Token saved with realmId: ${token.realmId}`);
     return token;
