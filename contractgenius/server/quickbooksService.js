@@ -337,17 +337,17 @@ const createInvoice = (qbo, customerId, contractData) => {
 };
 
 const processContractSignatureForQB = async (contractData) => {
-  try {
     if (!oauthToken) {
-      console.log("[QB] Skipping - Not authenticated");
-      return null;
+      throw new Error("[QB] Not authenticated with QuickBooks. Please complete OAuth setup at /auth/quickbooks.");
     }
 
     const vendorData = contractData.vendorDetails || contractData.vendor;
 
-    if (!vendorData || !vendorData.email) {
-      console.log("[QB] Skipping - No vendor data or email");
-      return null;
+    if (!vendorData) {
+      throw new Error("[QB] Missing vendor details on contract.");
+    }
+    if (!vendorData.email) {
+      throw new Error("[QB] Vendor email is required to generate a QuickBooks invoice.");
     }
 
     console.log(`[QB] Processing contract for: ${vendorData.company || vendorData.name}`);
@@ -360,7 +360,7 @@ const processContractSignatureForQB = async (contractData) => {
       createInvoice(qbo, customer.Id, contractData)
     );
 
-    if (!invoice) return null;
+    if (!invoice) throw new Error("[QB] Invoice creation returned no result.");
 
     console.log(`[QB] ✅ Invoice ${invoice.Id} created`);
 
@@ -423,10 +423,6 @@ console.log("vendor details",vendorData)
     console.log("[QB] ✅ Webhook sent successfully");
 
     return invoice;
-  } catch (e) {
-    console.error("[QB] ❌ Integration Failed:", e.message);
-    return null;
-  }
 };
 
 const isAuthenticated = () => {

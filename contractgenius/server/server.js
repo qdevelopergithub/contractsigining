@@ -459,10 +459,16 @@ app.post('/api/contracts/sign', async (req, res) => {
 
     // 5. QuickBooks Integration (Create Customer & Invoice)
     let qbInvoice = null;
+    let qbError = null;
     try {
       console.log(`[Server] Triggering QuickBooks Invoice Creation for ${contractId}`);
       qbInvoice = await qbService.processContractSignatureForQB(contract);
+      if (!qbInvoice) {
+        qbError = "QuickBooks invoice was not generated (no invoice returned).";
+        console.error(`[Server] QB invoice not generated for ${contractId}`);
+      }
     } catch (qbErr) {
+      qbError = qbErr.message || "Unknown QuickBooks error.";
       console.error("[Server] QB processing failed, but contract is signed:", qbErr);
     }
 
@@ -493,14 +499,17 @@ app.post('/api/contracts/sign', async (req, res) => {
     //   })
     // }).catch(err => console.error("[Server] Make.com Webhook Error (Sign):", err.message));
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       message: "Contract signed and finalized",
-      quickbooks: qbInvoice ? {
-        invoiceId: qbInvoice.Id,
-        invoiceNumber: qbInvoice.DocNumber,
-        customerName: vendor.company || vendor.name
-      } : null
+      quickbooks: qbInvoice
+        ? {
+            invoiceId: qbInvoice.Id,
+            invoiceNumber: qbInvoice.DocNumber,
+            customerName: vendor.company || vendor.name
+          }
+        : null,
+      quickbooksError: qbError || undefined
     });
 
   } catch (error) {
