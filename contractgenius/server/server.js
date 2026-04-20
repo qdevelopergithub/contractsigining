@@ -241,6 +241,8 @@ try {
     debug: {
       errorMessage: sheetError.message,
       fullError: sheetError?.response?.data || null,
+          spreadsheetId: process.env.GOOGLE_SPREADSHEET_ID || "Not found",
+
       serviceAccount: process.env.GOOGLE_SERVICE_ACCOUNT_JSON
         ? JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON).client_email
         : "No credentials found",
