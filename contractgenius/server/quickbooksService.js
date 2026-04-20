@@ -22,10 +22,17 @@ let oauthToken = null;
 
 const loadToken = () => {
   try {
+    // 1. Try loading from file (local dev)
     if (fs.existsSync(TOKEN_FILE)) {
       const data = fs.readFileSync(TOKEN_FILE, 'utf8');
       oauthToken = JSON.parse(data);
-      console.log('[QB] Loaded stored OAuth token');
+      console.log('[QB] Loaded stored OAuth token from file');
+      return;
+    }
+    // 2. Fallback: load from env var (production / Render)
+    if (process.env.QB_OAUTH_TOKEN) {
+      oauthToken = JSON.parse(process.env.QB_OAUTH_TOKEN);
+      console.log('[QB] Loaded OAuth token from QB_OAUTH_TOKEN env var');
     }
   } catch (e) {
     console.error('[QB] Error loading token:', e.message);
