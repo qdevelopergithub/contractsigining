@@ -25,6 +25,10 @@ const loadToken = () => {
     if (fs.existsSync(TOKEN_FILE)) {
       const data = fs.readFileSync(TOKEN_FILE, 'utf8');
       oauthToken = JSON.parse(data);
+      // Restore realmId onto the oauthClient so it's available for API calls
+      if (oauthToken.realmId) {
+        oauthClient.realmId = oauthToken.realmId;
+      }
       console.log('[QB] Loaded stored OAuth token');
     }
   } catch (e) {
@@ -54,7 +58,10 @@ const createToken = async (url) => {
   try {
     const authResponse = await oauthClient.createToken(url);
     const token = authResponse.getJson();
+    // Persist realmId so it survives server restarts
+    token.realmId = oauthClient.realmId;
     saveToken(token);
+    console.log(`[QB] Token saved with realmId: ${token.realmId}`);
     return token;
   } catch (e) {
     console.error('Error creating QB token:', e);
@@ -372,8 +379,11 @@ const processContractSignatureForQB = async (contractData) => {
       return invoice;
     }
 
+    const realmId = process.env.QB_COMPANY_ID || oauthToken.realmId || oauthClient.realmId;
+    if (!realmId) throw new Error("[QB] Company ID (realmId) is missing. Re-authenticate at /auth/authUri.");
+
     await fetch(
-      `${QB_API_BASE}/v3/company/${oauthClient.realmId}/invoice/${invoice.Id}/send`,
+      `${QB_API_BASE}/v3/company/${realmId}/invoice/${invoice.Id}/send`,
       {
         method: "POST",
         headers: {
@@ -454,7 +464,8 @@ const sendInvoiceEmail = async (invoiceId, toEmail) => {
     throw new Error('[QB] Not authenticated — cannot send invoice email.');
   }
 
-  const realmId = process.env.QB_COMPANY_ID;
+  const realmId = process.env.QB_COMPANY_ID || oauthToken.realmId || oauthClient.realmId;
+  if (!realmId) throw new Error('[QB] Company ID (realmId) is missing. Re-authenticate at /auth/authUri.');
   const url = `${QB_API_BASE}/v3/company/${realmId}/invoice/${invoiceId}/send?sendTo=${encodeURIComponent(toEmail)}`;
 
   console.log(`[QB] Sending invoice ${invoiceId} to ${toEmail}...`);
