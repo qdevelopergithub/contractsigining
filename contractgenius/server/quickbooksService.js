@@ -234,69 +234,48 @@ const createInvoice = (qbo, customerId, contractData) => {
 
     // Fixtures summary for descriptions (no separate $0 line items — QB rejects Amount/UnitPrice mismatch)
     const fixtureLines = (v.selectedFixtures || []).map(f => `${f.type} (Qty: ${f.quantity})`).join(', ') || 'N/A';
-    const customerEmail =
-      v.contacts?.[0]?.email ||
-      v.email ||
-      "";
-    const lines = [];
+    const customerEmail = (
+      vendorData.contacts?.[0]?.email ||
+      vendorData.email ||
+      ""
+    ).trim();
+
     if (!customerEmail) {
       return reject(new Error("Customer email is required for invoice"));
     }
-    // 1. Booth reservation — fixtures included in description (minimum $1 by default)
-    const boothAmount = v.baseAmount || v.totalAmount || 1;
-    if (boothAmount > 0) {
-      lines.push({
-        Amount: boothAmount,
-        DetailType: "SalesItemLineDetail",
-        Description: [
-          `Exhibitor Booth: ${boothSize}`,
-          `Fixtures: ${fixtureLines}`,
-          `Categories: ${categories}`,
-          `Brands: ${brands}`,
-          `Event Date(s): ${eventDates}`,
-        ].join(' | '),
-        SalesItemLineDetail: {
-          ItemRef: { value: "1", name: "Services" },
-          UnitPrice: boothAmount,  // Amount must equal UnitPrice * Qty
-          Qty: 1
-        }
-      });
-    }
 
-    // 2. Deposit line (if applicable)
-    if (v.depositAmount > 0) {
-      lines.push({
-        Amount: v.depositAmount,
-        DetailType: "SalesItemLineDetail",
-        Description: `Booth Deposit - ${boothSize}`,
-        SalesItemLineDetail: {
-          ItemRef: { value: "1", name: "Services" },
-          UnitPrice: v.depositAmount,
-          Qty: 1
-        }
-      });
-    }
+    const lines = [];
+    console.log(`[QB] Creating invoice for ${companyName}. Vendor data:`, JSON.stringify(v, null, 2));
 
-    // 3. CC fee line — Amount must equal UnitPrice * Qty
-    if (v.ccFee > 0) {
-      lines.push({
-        Amount: v.ccFee,
-        DetailType: "SalesItemLineDetail",
-        Description: `Credit Card Processing Fee (2.99%) — Payment Method: ${paymentMode}`,
-        SalesItemLineDetail: {
-          ItemRef: { value: "1", name: "Services" },
-          UnitPrice: v.ccFee,
-          Qty: 1
-        }
-      });
-    }
+    // Calculate total fixtures for Qty
+    const totalFixturesSum = (v.selectedFixtures || []).reduce((sum, f) => sum + (f.quantity || 0), 0) || 1;
+    const finalAmount = v.totalAmount || v.baseAmount || 1.00;
+    const unitPrice = Math.round((finalAmount / totalFixturesSum) * 100) / 100;
 
-    // 4. Fallback: $1 placeholder if no amounts set
+    lines.push({
+      Amount: finalAmount,
+      DetailType: "SalesItemLineDetail",
+      Description: [
+        `Exhibitor Booth: ${boothSize}`,
+        `Fixtures: ${fixtureLines}`,
+        `Categories: ${categories}`,
+        `Brands: ${brands}`,
+        `Event Date(s): ${eventDates}`,
+        v.paymentMode ? `Payment Method: ${v.paymentMode}` : '',
+      ].filter(Boolean).join(' | '),
+      SalesItemLineDetail: {
+        ItemRef: { value: "1", name: "Services" },
+        UnitPrice: unitPrice,
+        Qty: totalFixturesSum
+      }
+    });
+
+    // 2. Placeholder fallback (if for some reason lines is still empty, though it won't be now)
     if (lines.length === 0) {
       lines.push({
         Amount: 1.00,
         DetailType: "SalesItemLineDetail",
-        Description: `Exhibitor Booth Reservation — ${companyName} | Booth: ${boothSize} | Fixtures: ${fixtureLines} | Categories: ${categories} | Event: ${eventDates} (amount to be updated)`,
+        Description: `Exhibitor Booth Reservation — ${companyName}`,
         SalesItemLineDetail: {
           ItemRef: { value: "1", name: "Services" },
           UnitPrice: 1.00,
@@ -419,14 +398,14 @@ const processContractSignatureForQB = async (contractData) => {
       },
       body: JSON.stringify({
         action: 'invoice_payment',
-         email: customerEmail, 
-         to: customerEmail, 
-         submissionLink: submissionLink, 
-         invoiceId: invoice.Id, 
-         companyName: vendorData.company || '',
+        email: customerEmail,
+        to: customerEmail,
+        submissionLink: submissionLink,
+        invoiceId: invoice.Id,
+        companyName: vendorData.company || '',
       }),
     });
-console.log("vendor details",vendorData)
+    console.log("vendor details", vendorData)
     console.log("[QB] ✅ Webhook sent successfully");
 
     return invoice;

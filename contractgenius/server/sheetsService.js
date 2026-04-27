@@ -28,49 +28,33 @@ if (!auth) {
 
 const sheets = google.sheets({ version: 'v4', auth });
 
-const HEADERS = [
-    'Date',           // A
-    'Contract ID',    // B
-    'Exhibitor Type', // C
-    'Company',        // D
-    'Address',        // E
-    'Brand(s)',       // F
-    'Brand Websites', // G
-    'Brand Instagram',// H
-    'Contact Name',   // I
-    'Contact Title',  // J
-    'Contact Email',  // K
-    'Contact Phone',  // L
-    'Extra Contacts', // M
-    'Categories',     // N
-    'Booth Size',     // O
-    'Custom Booth Size', // P
-    'Custom Booth Requirements', // Q
-    'Fixtures',       // R
-    'Event Date(s)',  // S
-    'Special Requirements', // T
-    'Payment Mode',   // U
-    'Notes',          // V
-    'Base Amount',    // W
-    'CC Fee',         // X
-    'Total Amount',   // Y
-    'Status'          // Z
+const BOOKING_HEADERS = [
+    'Date', 'Contract ID', 'Exhibitor Type', 'Company / Address', 'Brand(s)', 
+    'Brand Websites', 'Brand Instagram', 'Contact Name', 'Contact Title', 
+    'Contact Email', 'Contact Phone', 'Extra Contacts', 'Categories', 
+    'Booth Size', 'Custom Booth Size', 'Custom Booth Requirements', 
+    'Fixtures', 'Event Date(s)', 'Special Requirements', 'Payment Mode', 
+    'Notes', 'Base Amount', 'CC Fee', 'Total Amount', 'Status'
 ];
 
-async function ensureHeaders(spreadsheetId) {
-    const response = await sheets.spreadsheets.values.get({
-        spreadsheetId,
-        range: 'Sheet1!A1:Z1',
-    });
-    const firstRow = response.data.values?.[0];
-    if (!firstRow || firstRow.length === 0) {
-        await sheets.spreadsheets.values.update({
+async function ensureHeaders(spreadsheetId, sheetName = 'Booking Summary') {
+    try {
+        const response = await sheets.spreadsheets.values.get({
             spreadsheetId,
-            range: 'Sheet1!A1:Z1',
-            valueInputOption: 'USER_ENTERED',
-            resource: { values: [HEADERS] },
+            range: `${sheetName}!A1:Y1`,
         });
-        console.log('[SheetsService] ✅ Headers added to Sheet1');
+        const firstRow = response.data.values?.[0];
+        if (!firstRow || firstRow.length === 0) {
+            await sheets.spreadsheets.values.update({
+                spreadsheetId,
+                range: `${sheetName}!A1:Y1`,
+                valueInputOption: 'USER_ENTERED',
+                resource: { values: [BOOKING_HEADERS] },
+            });
+            console.log(`[SheetsService] ✅ Headers added to ${sheetName}`);
+        }
+    } catch (e) {
+        console.error(`[SheetsService] ⚠️ Could not ensure headers for ${sheetName}:`, e.message);
     }
 }
 
@@ -142,7 +126,7 @@ async function appendContractRow(contract) {
 
         const response = await sheets.spreadsheets.values.append({
             spreadsheetId,
-            range: 'Sheet1!A:Z',
+            range: 'Booking Summary!A:Y',
             valueInputOption: 'USER_ENTERED',
             insertDataOption: 'INSERT_ROWS',
             resource: {
@@ -165,31 +149,32 @@ async function appendContractRow(contract) {
  */
 async function syncPaymentStatus(contractId, newStatus) {
     const spreadsheetId = process.env.GOOGLE_SPREADSHEET_ID;
+    const sheetName = 'Booking Summary';
     if (!spreadsheetId) return;
 
     try {
         // 1. Fetch all Contract IDs from Column B to find the correct row
         const response = await sheets.spreadsheets.values.get({
             spreadsheetId,
-            range: 'Sheet1!B2:B5000', // Assumes ID is in Col B
+            range: `${sheetName}!B2:B5000`, 
         });
 
         const rows = response.data.values || [];
         const rowIndex = rows.findIndex(row => row[0] === contractId);
 
         if (rowIndex === -1) {
-            console.warn(`[SheetsService] ⚠️ Could not find Contract ID ${contractId} in Sheet1 to update status.`);
+            console.warn(`[SheetsService] ⚠️ Could not find Contract ID ${contractId} in ${sheetName} to update status.`);
             return;
         }
 
-        // 2. Update Column Z (26th column = Status) for that specific row
+        // 2. Update Column Y (25th column = Status) for that specific row
         const actualSheetRow = rowIndex + 2;
         await sheets.spreadsheets.values.update({
             spreadsheetId,
-            range: `Sheet1!Z${actualSheetRow}`,
+            range: `${sheetName}!Y${actualSheetRow}`,
             valueInputOption: 'USER_ENTERED',
             resource: {
-                values: [[newStatus.toUpperCase()]]
+                values: [[newStatus.charAt(0).toUpperCase() + newStatus.slice(1).toLowerCase()]]
             }
         });
 
@@ -210,11 +195,11 @@ async function getAllRows() {
     try {
         const response = await sheets.spreadsheets.values.get({
             spreadsheetId,
-            range: 'Sheet1!A2:Z1000', // Fetch up to 1000 rows
+            range: 'Booking Summary!A2:Y5000', 
         });
         return response.data.values || [];
     } catch (error) {
-        console.error('[SheetsService] Failed to fetch all rows:', error.message);
+        console.error('[SheetsService] Failed to fetch all rows from Booking Summary:', error.message);
         return [];
     }
 }
@@ -234,42 +219,41 @@ async function getContractById(contractId) {
 
         if (!row) return null;
 
-        // Column index reference (0-based):
-        // A=0:Date, B=1:ContractID, C=2:ExhibitorType, D=3:Company, E=4:Address,
-        // F=5:Brands, G=6:BrandWebsites, H=7:BrandInstagram,
-        // I=8:ContactName, J=9:ContactTitle, K=10:ContactEmail, L=11:ContactPhone,
-        // M=12:ExtraContacts, N=13:Categories, O=14:BoothSize, P=15:CustomBoothSize,
-        // Q=16:CustomBoothReqs, R=17:Fixtures, S=18:EventDates, T=19:SpecialReqs,
-        // U=20:PaymentMode, V=21:Notes, W=22:BaseAmount, X=23:CCFee, Y=24:Total, Z=25:Status
+        // Column index reference for Booking Summary (0-based):
+        // A=0:Date, B=1:ContractID, C=2:ExhibitorType, D=3:Co/Add, E=4:Brands,
+        // F=5:Websites, G=6:Instagram, H=7:Name, I=8:Title, J=9:Email, K=10:Phone,
+        // L=11:Extra, M=12:Categories, N=13:BoothSize, O=14:CustomSize, 
+        // P=15:CustomReqs, Q=16:Fixtures, R=17:Date(s), S=18:SpecialReqs,
+        // T=19:PayMode, U=20:Notes, V=21:Base, W=22:CCFee, X=23:Total, Y=24:Status
 
         const vendorDetails = {
             exhibitorType: row[2] || '',
-            brands: (row[5] && row[5] !== 'N/A') ? row[5].split(', ').map((name, i) => ({
+            company: (row[3] || '').split(' / ')[0],
+            address: (row[3] || '').split(' / ')[1] || '',
+            brands: (row[4] && row[4] !== 'N/A') ? row[4].split(', ').map((name, i) => ({
                 brandName: name,
-                website: (row[6] && row[6] !== 'N/A') ? row[6].split(', ')[i] || '' : '',
-                instagram: (row[7] && row[7] !== 'N/A') ? row[7].split(', ')[i] || '' : ''
+                website: (row[5] && row[5] !== 'N/A') ? row[5].split(', ')[i] || '' : '',
+                instagram: (row[6] && row[6] !== 'N/A') ? row[6].split(', ')[i] || '' : ''
             })) : [],
-            company: row[3] || '',
-            name: row[8] || '',
-            contacts: [{ name: row[8] || '', title: row[9] || '', email: row[10] || '', phone: row[11] || '' }],
-            email: row[10] || '',
-            address: row[4] || '',
-            categories: (row[13] && row[13] !== 'N/A') ? row[13].split(', ') : [],
-            finalBoothSize: row[14] || '',
-            boothSize: row[14] || '',
-            customBoothSize: row[15] || '',
-            customBoothRequirements: row[16] || '',
-            selectedFixtures: (row[17] && row[17] !== 'N/A') ? row[17].split(', ').map(f => {
-                const m = f.match(/^(.+) x(\d+)$/);
+            name: row[7] || '',
+            contacts: [{ name: row[7] || '', title: row[8] || '', email: row[9] || '', phone: row[10] || '' }],
+            email: row[9] || '',
+            categories: (row[12] && row[12] !== 'N/A') ? row[12].split(', ') : [],
+            boothSize: row[13] || '',
+            finalBoothSize: row[13] || '',
+            customBoothSize: row[14] || '',
+            customBoothRequirements: row[15] || '',
+            selectedFixtures: (row[16] && row[16] !== 'N/A') ? row[16].split(', ').map(f => {
+                const m = f.match(/^(.+) ×(\d+)$/) || f.match(/^(.+) x(\d+)$/);
                 return m ? { type: m[1], quantity: parseInt(m[2]) } : { type: f, quantity: 1 };
             }) : [],
-            eventDates: (row[18] && row[18] !== 'N/A') ? row[18].split(', ') : [],
-            specialRequirements: row[19] || '',
-            paymentMode: row[20] || 'Credit Card',
-            notes: row[21] || '',
-            baseAmount: parseFloat((row[22] || '0').replace('$', '')) || 0,
-            ccFee: parseFloat((row[23] || '0').replace('$', '')) || 0,
-            totalAmount: parseFloat((row[24] || '0').replace('$', '')) || 0,
+            eventDates: (row[17] && row[17] !== 'N/A') ? row[17].split(', ') : [],
+            specialRequirements: row[18] || '',
+            paymentMode: row[19] || 'Credit Card',
+            notes: row[20] || '',
+            baseAmount: parseFloat((row[21] || '0').toString().replace(/[$,]/g, '')) || 0,
+            ccFee: parseFloat((row[22] || '0').toString().replace(/[$,]/g, '')) || 0,
+            totalAmount: parseFloat((row[23] || '0').toString().replace(/[$,]/g, '')) || 0,
         };
 
         // Regenerate contract text from stored fields
@@ -348,9 +332,204 @@ Standard terms and conditions apply. The Vendor agrees to maintain appropriate i
     }
 }
 
+/**
+ * Reads inventory data from the Fixture Inventory sheet
+ */
+async function getFixtureInventory() {
+    const spreadsheetId = process.env.GOOGLE_SPREADSHEET_ID;
+    try {
+        const response = await sheets.spreadsheets.values.get({
+            spreadsheetId,
+            range: 'Fixture Inventory!A4:I11',
+        });
+        const rows = response.data.values || [];
+        console.log(`[SheetsService] 🔍 Read ${rows.length} rows from Fixture Inventory.`);
+        if (rows.length > 0) console.log(`[SheetsService] 📄 First row sample:`, JSON.stringify(rows[0]));
+        return rows.map((row, index) => {
+            const available = parseInt(row[5]) || 0;
+            const statusColSoldOut = (row[7] || '').toString().toLowerCase().includes('sold out');
+            const adminToggleSoldOut = (row[8] || '').toString().trim().toUpperCase() === 'YES';
+            const isSoldOut = adminToggleSoldOut || statusColSoldOut || available <= 0;
+            return {
+                rowIndex: index + 4,
+                name: row[0],
+                totalStock: parseInt(row[3]) || 0,
+                bookedCount: parseInt(row[4]) || 0,
+                availableCount: available,
+                isSoldOut,
+                status: isSoldOut ? 'soldout' : (available <= 2 ? 'low' : 'ok') // Alert threshold at 2
+            };
+        });
+    } catch (error) {
+        console.error('[SheetsService] Error getting inventory:', error.message);
+        throw error;
+    }
+}
+
+/**
+ * Reads booth configuration data
+ */
+async function getBoothConfig() {
+    const spreadsheetId = process.env.GOOGLE_SPREADSHEET_ID;
+    try {
+        const response = await sheets.spreadsheets.values.get({
+            spreadsheetId,
+            range: 'Booth Configuration!A4:E11', // rows 4-11 = exactly the 8 booth data rows
+        });
+        const rows = response.data.values || [];
+        return rows
+            .filter(row => row[0] && row[0].trim())
+            .map(row => {
+                const isCustom = row[0].toLowerCase().includes('custom');
+                return {
+                    name: row[0].trim(),
+                    maxFixtures: isCustom ? 0 : (parseInt(row[1]) || 0),
+                    basePrice: isCustom ? 0 : (parseFloat((row[4] || '0').replace(/[$,]/g, '')) || 0),
+                    isCustom
+                };
+            });
+    } catch (error) {
+        console.error('[SheetsService] Error getting booth config:', error.message);
+        throw error;
+    }
+}
+
+/**
+ * Generates the next sequential Contract ID
+ */
+async function generateContractId() {
+    const spreadsheetId = process.env.GOOGLE_SPREADSHEET_ID;
+    try {
+        const response = await sheets.spreadsheets.values.get({
+            spreadsheetId,
+            range: 'Booking Summary!B4:B5000',
+        });
+        const rows = response.data.values || [];
+        let maxId = 0;
+        rows.forEach(row => {
+            const match = row[0]?.match(/contract_(\d+)/);
+            if (match) {
+                const id = parseInt(match[1]);
+                if (id > maxId) maxId = id;
+            }
+        });
+        return `contract_${(maxId + 1).toString().padStart(3, '0')}`;
+    } catch (error) {
+        console.error('[SheetsService] Error generating contract ID:', error.message);
+        return `contract_${Date.now().toString(36)}`; // Fallback
+    }
+}
+
+/**
+ * Appends a row to the Booking Summary sheet
+ */
+async function appendBookingRow(data) {
+    const spreadsheetId = process.env.GOOGLE_SPREADSHEET_ID;
+    const sheetName = 'Booking Summary';
+    try {
+        await ensureHeaders(spreadsheetId, sheetName);
+        
+        // 1. Get all A values to find TOTALS row
+        const response = await sheets.spreadsheets.values.get({
+            spreadsheetId,
+            range: `${sheetName}!A:A`,
+        });
+        const rows = response.data.values || [];
+        const totalsIndex = rows.findIndex(row => row[0]?.toString().trim() === 'TOTALS');
+
+        if (totalsIndex !== -1) {
+            // Found TOTALS row
+            // 2. Get Sheet ID for insertDimension
+            const sheetMeta = await sheets.spreadsheets.get({ spreadsheetId });
+            const sheet = sheetMeta.data.sheets.find(s => s.properties.title === sheetName);
+            const sheetId = sheet.properties.sheetId;
+
+            // 3. Insert Row at totalsIndex (this pushes the TOTALS row down)
+            await sheets.spreadsheets.batchUpdate({
+                spreadsheetId,
+                resource: {
+                    requests: [{
+                        insertDimension: {
+                            range: {
+                                sheetId,
+                                dimension: 'ROWS',
+                                startIndex: totalsIndex,
+                                endIndex: totalsIndex + 1
+                            },
+                            inheritFromBefore: true
+                        }
+                    }]
+                }
+            });
+
+            // 4. Set the values for the new row
+            const newRowNumber = totalsIndex + 1;
+            await sheets.spreadsheets.values.update({
+                spreadsheetId,
+                range: `${sheetName}!A${newRowNumber}:Y${newRowNumber}`,
+                valueInputOption: 'USER_ENTERED',
+                resource: { values: [data] },
+            });
+            console.log(`[SheetsService] ✅ Inserted row above TOTALS at row ${newRowNumber}`);
+        } else {
+            // Fallback: Append at the end if TOTALS row not found
+            await sheets.spreadsheets.values.append({
+                spreadsheetId,
+                range: `${sheetName}!A:Y`,
+                valueInputOption: 'USER_ENTERED',
+                insertDataOption: 'INSERT_ROWS',
+                resource: { values: [data] },
+            });
+            console.log(`[SheetsService] ✅ Appended row at the end (TOTALS not found)`);
+        }
+    } catch (error) {
+        console.error('[SheetsService] Error appending booking row:', error.message);
+        throw error;
+    }
+}
+
+/**
+ * Updates fixture booked counts in batch
+ */
+async function updateFixtureBookedCounts(updates) {
+    const spreadsheetId = process.env.GOOGLE_SPREADSHEET_ID;
+    try {
+        const data = updates.map(u => ({
+            range: `Fixture Inventory!E${u.rowIndex}:F${u.rowIndex}`,
+            values: [[u.newBookedCount, Math.max(0, u.totalStock - u.newBookedCount)]]
+        }));
+        
+        // Also update Last Updated By in Col J
+        updates.forEach(u => {
+            data.push({
+                range: `Fixture Inventory!J${u.rowIndex}`,
+                values: [['System']]
+            });
+        });
+
+        console.log(`[SheetsService] 📤 Sending batchUpdate to Sheets:`, JSON.stringify(data, null, 2));
+        const result = await sheets.spreadsheets.values.batchUpdate({
+            spreadsheetId,
+            resource: {
+                valueInputOption: 'USER_ENTERED',
+                data
+            }
+        });
+        console.log(`[SheetsService] 📥 Sheets API Response:`, result.statusText || result.status);
+    } catch (error) {
+        console.error('[SheetsService] Error updating inventory counts:', error.message);
+        throw error;
+    }
+}
+
 module.exports = {
     appendContractRow,
     syncPaymentStatus,
     getContractById,
-    getAllRows
+    getAllRows,
+    getFixtureInventory,
+    getBoothConfig,
+    generateContractId,
+    appendBookingRow,
+    updateFixtureBookedCounts
 };

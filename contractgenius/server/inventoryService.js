@@ -28,7 +28,7 @@ if (!auth) {
 const sheets = google.sheets({ version: 'v4', auth });
 
 // Sheet tab name for inventory (Tab 2)
-const INVENTORY_SHEET_TAB = 'Inventory';
+const INVENTORY_SHEET_TAB = 'Fixture Inventory';
 const LOW_STOCK_THRESHOLD_PERCENT = 0.10; // Alert when below 10%
 
 /**

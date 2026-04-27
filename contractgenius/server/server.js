@@ -23,7 +23,7 @@ const PORT = process.env.PORT || 3001;
 const allowedOrigins = [
   'http://localhost:3002',
   'http://localhost:3003',
-  'http://localhost:3004',
+  'https://contract-genius-backend-93t6.onrender.com',
   process.env.FRONTEND_URL,
   process.env.ADMIN_URL
 ].filter(Boolean);
@@ -215,9 +215,89 @@ Standard terms and conditions apply. The Vendor agrees to maintain appropriate i
     console.log(`[Server] ✅ Contract ${contractId} created successfully`);
 
     // 2.5 Aggregate Data to Google Sheets (Non-blocking)
-    sheetsService.appendContractRow(contractData).catch(err => {
+    // Build row matching BOOKING_HEADERS column order exactly:
+    // A:Date, B:ContractID, C:ExhibitorType, D:Company/Address, E:Brand(s),
+    // F:BrandWebsites, G:BrandInstagram, H:ContactName, I:ContactTitle,
+    // J:ContactEmail, K:ContactPhone, L:ExtraContacts, M:Categories,
+    // N:BoothSize, O:CustomBoothSize, P:CustomBoothRequirements,
+    // Q:Fixtures, R:EventDate(s), S:SpecialRequirements, T:PaymentMode,
+    // U:Notes, V:BaseAmount, W:CCFee, X:TotalAmount, Y:Status
+    const vendor = contractData.vendorDetails;
+    const primaryContact = vendor.contacts?.[0] || {};
+    const extraContacts = vendor.contacts?.slice(1).filter(c => c.name)
+      .map(c => `${c.name}${c.title ? ` (${c.title})` : ''} — ${c.email}`).join(' | ') || 'N/A';
+    const brandsStr    = vendor.brands?.filter(b => b.brandName).map(b => b.brandName).join(', ') || 'N/A';
+    const websitesStr  = vendor.brands?.filter(b => b.website).map(b => b.website).join(', ') || 'N/A';
+    const instagramStr = vendor.brands?.filter(b => b.instagram).map(b => b.instagram).join(', ') || 'N/A';
+    const fixturesStr  = vendor.selectedFixtures?.map(f => `${f.type} x${f.quantity}`).join(', ') || 'N/A';
+    const catsStr      = vendor.categories?.map(c => c === 'Other' ? `Other: ${vendor.otherCategory || ''}` : c).join(', ') || 'N/A';
+    const eventDatesStr = Array.isArray(vendor.eventDates) ? vendor.eventDates.join(', ') : (vendor.eventDates || 'N/A');
+
+    const sheetRow = [
+      new Date(contractData.createdAt).toLocaleString(),           // A: Date
+      contractData.id,                                              // B: Contract ID
+      vendor.exhibitorType || 'N/A',                               // C: Exhibitor Type
+      `${vendor.company || 'N/A'} / ${vendor.address || 'N/A'}`,  // D: Company / Address
+      brandsStr,                                                    // E: Brand(s)
+      websitesStr,                                                  // F: Brand Websites
+      instagramStr,                                                 // G: Brand Instagram
+      primaryContact.name || 'N/A',                                // H: Contact Name
+      primaryContact.title || 'N/A',                               // I: Contact Title
+      primaryContact.email || vendor.email || 'N/A',               // J: Contact Email
+      primaryContact.phone || 'N/A',                               // K: Contact Phone
+      extraContacts,                                                // L: Extra Contacts
+      catsStr,                                                      // M: Categories
+      vendor.finalBoothSize || vendor.boothSize || 'N/A',          // N: Booth Size
+      vendor.customBoothSize || 'N/A',                             // O: Custom Booth Size
+      vendor.customBoothRequirements || 'N/A',                     // P: Custom Booth Reqs
+      fixturesStr,                                                  // Q: Fixtures
+      eventDatesStr,                                                // R: Event Date(s)
+      vendor.specialRequirements || 'N/A',                         // S: Special Requirements
+      vendor.paymentMode || 'Credit Card',                         // T: Payment Mode
+      vendor.notes || 'N/A',                                       // U: Notes
+      `$${vendor.baseAmount || 0}`,                                // V: Base Amount
+      `$${vendor.ccFee || 0}`,                                     // W: CC Fee
+      `$${vendor.totalAmount || 0}`,                               // X: Total Amount
+      contractData.status || 'Draft'                               // Y: Status
+    ];
+
+    sheetsService.appendBookingRow(sheetRow).catch(err => {
       console.error(`[Server] Non-fatal error aggregating to Google Sheets:`, err.message);
     });
+
+    // 2.6 Update Fixture Inventory booked counts (Non-blocking)
+    if (vendor.selectedFixtures?.length > 0) {
+      (async () => {
+        try {
+          const currentInventory = await sheetsService.getFixtureInventory();
+          const updates = [];
+
+          for (const selected of vendor.selectedFixtures) {
+            const inventoryItem = currentInventory.find(
+              inv => inv.name?.toLowerCase().trim() === selected.type?.toLowerCase().trim()
+            );
+            if (inventoryItem) {
+              const newBookedCount = (inventoryItem.bookedCount || 0) + (selected.quantity || 0);
+              updates.push({
+                rowIndex: inventoryItem.rowIndex,
+                newBookedCount,
+                totalStock: inventoryItem.totalStock
+              });
+              console.log(`[Server] 📦 Updating inventory: ${selected.type} — booked ${inventoryItem.bookedCount} → ${newBookedCount}`);
+            } else {
+              console.warn(`[Server] ⚠️ Fixture not found in inventory: "${selected.type}"`);
+            }
+          }
+
+          if (updates.length > 0) {
+            await sheetsService.updateFixtureBookedCounts(updates);
+            console.log(`[Server] ✅ Inventory updated for ${updates.length} fixture type(s)`);
+          }
+        } catch (err) {
+          console.error(`[Server] Non-fatal error updating fixture inventory:`, err.message);
+        }
+      })();
+    }
 
     // 3. Define Magic Link for the vendor
     const signingAppUrl = process.env.SIGNING_APP_URL || "https://contractsigining-9kgu.vercel.app";
@@ -227,19 +307,29 @@ Standard terms and conditions apply. The Vendor agrees to maintain appropriate i
 
     // 4. Trigger Make.com Webhook (Automation Flow)
     const MAKE_WEBHOOK_URL = process.env.MAKE_WEBHOOK_URL || "https://hook.us2.make.com/ihncxlrp5nekfz7h2kmy5hni4lv0ct6w";
-    fetch(MAKE_WEBHOOK_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: "submit_vendor_data",
-        submissionLink: magicLink,
-        email: contractData.vendorDetails.email,
-        to: contractData.vendorDetails.email,
-        contractId: contractId,
-        company: contractData.vendorDetails.company
-      })
-    }).catch(err => console.error("[Server] Make.com Webhook Error (Draft):", err.message));
-
+    const vd = contractData.vendorDetails || {};
+    const vendorEmail = (
+      vd.contacts?.[0]?.email ||
+      vd.email ||
+      ""
+    ).trim();
+    console.log(`[Server] Make.com webhook — resolved vendor email: "${vendorEmail}"`);
+    if (!vendorEmail) {
+      console.error("[Server] ⚠️ Skipping Make.com webhook — vendorDetails.email is empty");
+    } else {
+      fetch(MAKE_WEBHOOK_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: "submit_vendor_data",
+          submissionLink: magicLink,
+          email: vendorEmail,
+          to: vendorEmail,
+          contractId: contractId,
+          company: vd.company || vd.companyName || ''
+        })
+      }).catch(err => console.error("[Server] Make.com Webhook Error (Draft):", err.message));
+    }
     res.json({
       success: true,
       message: "Contract created successfully",
@@ -570,6 +660,41 @@ app.get('/api/inventory', async (req, res) => {
     res.json({ success: true, inventory });
   } catch (error) {
     console.error('[Server] Failed to load inventory:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Fixture cache to avoid hammering the sheet on every form load
+let fixtureCache = null;
+let lastCacheUpdate = 0;
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+// GET /api/fixtures - Returns all fixture availability for the vendor form dropdown
+app.get('/api/fixtures', async (_req, res) => {
+  try {
+    const now = Date.now();
+    if (fixtureCache && (now - lastCacheUpdate < CACHE_DURATION)) {
+      return res.json({ success: true, fixtures: fixtureCache });
+    }
+
+    const fixtures = await sheetsService.getFixtureInventory();
+    fixtureCache = fixtures;
+    lastCacheUpdate = now;
+
+    res.json({ success: true, fixtures });
+  } catch (error) {
+    console.error('[Server] Failed to load fixtures:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// GET /api/booths - Returns booth configuration from the Booth Configuration sheet
+app.get('/api/booths', async (_req, res) => {
+  try {
+    const booths = await sheetsService.getBoothConfig();
+    res.json({ success: true, booths });
+  } catch (error) {
+    console.error('[Server] Failed to load booth config:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 });

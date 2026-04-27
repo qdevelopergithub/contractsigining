@@ -54,7 +54,7 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
 
   // PRICING CONFIGURATION (Editable placeholders)
   const PRICING = {
-    BOOTH_BASE_PRICE: 1000, 
+    BOOTH_BASE_PRICE: 1000,
     CUSTOM_BOOTH_MULTIPLIER: 250, // Per custom fixture
     CC_FEE_PERCENTAGE: 0.0299 // 2.99%
   };
@@ -110,7 +110,7 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
   // Live Pricing Calculation
   const getCalculatedPrices = () => {
     let base = 0;
-    
+
     // Calculate Booth Base Cost
     if (formData.boothSize === "Custom Fixture") {
       base = totalQuota * PRICING.CUSTOM_BOOTH_MULTIPLIER;
@@ -126,7 +126,7 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
 
     return { base, ccFee, total };
   };
-  
+
   const currentPrices = getCalculatedPrices();
 
   const handleBrandChange = (index: number, field: keyof BrandInfo, value: string) => {
@@ -899,9 +899,9 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
                               const invItem = inventory.find(i => i.fixtureName.toLowerCase() === type.toLowerCase());
                               const isSoldOut = invItem && invItem.available <= 0;
                               return (
-                                <option 
-                                  key={type} 
-                                  value={type} 
+                                <option
+                                  key={type}
+                                  value={type}
                                   disabled={isSoldOut && fix.type !== type}
                                 >
                                   {type} {isSoldOut ? '(SOLD OUT)' : invItem ? `(${invItem.available} left)` : ''}
@@ -1028,14 +1028,14 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
                   <span>Booth Allocation ({formData.finalBoothSize})</span>
                   <span className="font-medium">${currentPrices.base.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                 </div>
-                
+
                 {formData.paymentMode === 'Credit Card' && (
                   <div className="flex justify-between items-center text-sm text-amber-600">
                     <span>Credit Card Processing Fee (2.99%)</span>
                     <span className="font-medium">${currentPrices.ccFee.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                   </div>
                 )}
-                
+
                 <div className="pt-4 border-t border-gray-200 flex justify-between items-center bg-gray-50 -mx-6 px-6 py-4 mt-2">
                   <span className="text-base font-bold text-gray-900">Total Estimated Cost</span>
                   <span className="text-xl font-bold text-indigo-700">

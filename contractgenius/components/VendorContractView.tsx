@@ -339,10 +339,10 @@ export const VendorContractView: React.FC<Props> = ({ contractId, navigate }) =>
                                     <span>${contract.vendorDetails.totalAmount?.toFixed(2) || '0.00'}</span>
                                 </div>
                                 {(contract.vendorDetails.depositAmount ?? 0) > 0 && (
-                                   <div className="flex justify-between text-indigo-700 bg-indigo-50 p-2 rounded mt-2 font-medium">
-                                       <span>Required Deposit:</span>
-                                       <span>${contract.vendorDetails.depositAmount?.toFixed(2)}</span>
-                                   </div>
+                                    <div className="flex justify-between text-indigo-700 bg-indigo-50 p-2 rounded mt-2 font-medium">
+                                        <span>Required Deposit:</span>
+                                        <span>${contract.vendorDetails.depositAmount?.toFixed(2)}</span>
+                                    </div>
                                 )}
                             </div>
                         </div>
