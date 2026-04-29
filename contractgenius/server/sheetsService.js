@@ -522,6 +522,88 @@ async function updateFixtureBookedCounts(updates) {
     }
 }
 
+/**
+ * Initializes the Dashboard tab with formulas for Sales and Payment summaries
+ */
+async function initializeDashboard() {
+    const spreadsheetId = process.env.GOOGLE_SPREADSHEET_ID;
+    const sheetName = 'Dashboard';
+    if (!spreadsheetId) return;
+
+    try {
+        // 1. Check if Dashboard sheet exists
+        const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId });
+        let dashboardSheet = spreadsheet.data.sheets.find(s => s.properties.title === sheetName);
+
+        if (!dashboardSheet) {
+            console.log(`[SheetsService] 📊 Creating ${sheetName} tab...`);
+            await sheets.spreadsheets.batchUpdate({
+                spreadsheetId,
+                resource: {
+                    requests: [{
+                        addSheet: { properties: { title: sheetName } }
+                    }]
+                }
+            });
+        }
+
+        // 2. Set up the Dashboard Layout and Formulas
+        // A=Sales Progress, C=Payment Status
+        const values = [
+            ['SALES PROGRESS', '', 'PAYMENT STATUS', ''],
+            ['Total Contracts', '=COUNTA(\'Booking Summary\'!B4:B5000)', 'Total Billed', '=SUM(\'Booking Summary\'!X4:X5000)'],
+            ['Signed', '=COUNTIF(\'Booking Summary\'!Y4:Y5000, "Signed") + COUNTIF(\'Booking Summary\'!Y4:Y5000, "Paid")', 'Total Collected', '=SUMIF(\'Booking Summary\'!Y4:Y5000, "Paid", \'Booking Summary\'!X4:X5000)'],
+            ['Draft', '=COUNTIF(\'Booking Summary\'!Y4:Y5000, "Draft")', 'Balance Due', '=D2-D3'],
+            ['', '', '', ''],
+            ['Last Updated', new Date().toLocaleString(), '', '']
+        ];
+
+        await sheets.spreadsheets.values.update({
+            spreadsheetId,
+            range: `${sheetName}!A1:D6`,
+            valueInputOption: 'USER_ENTERED',
+            resource: { values },
+        });
+
+        console.log(`[SheetsService] ✅ Dashboard initialized with real-time formulas.`);
+    } catch (error) {
+        console.error('[SheetsService] ❌ Failed to initialize dashboard:', error.message);
+    }
+}
+
+/**
+ * Reads the calculated metrics from the Dashboard tab
+ * @returns {Promise<Object>}
+ */
+async function getDashboardMetrics() {
+    const spreadsheetId = process.env.GOOGLE_SPREADSHEET_ID;
+    if (!spreadsheetId) return null;
+
+    try {
+        const response = await sheets.spreadsheets.values.get({
+            spreadsheetId,
+            range: 'Dashboard!B2:D4', // Read the formula results
+        });
+        const rows = response.data.values || [];
+        
+        return {
+            sales: {
+                total: rows[0]?.[0] || 0,
+                signed: rows[1]?.[0] || 0,
+                draft: rows[2]?.[0] || 0
+            },
+            payments: {
+                totalBilled: rows[0]?.[2] || 0,
+                totalCollected: rows[1]?.[2] || 0,
+                balanceDue: rows[2]?.[2] || 0
+            }
+        };
+    } catch (error) {
+        console.error('[SheetsService] Failed to read dashboard metrics:', error.message);
+        return null;
+    }
+}
+
 module.exports = {
     appendContractRow,
     syncPaymentStatus,
@@ -531,5 +613,7 @@ module.exports = {
     getBoothConfig,
     generateContractId,
     appendBookingRow,
-    updateFixtureBookedCounts
+    updateFixtureBookedCounts,
+    initializeDashboard,
+    getDashboardMetrics
 };

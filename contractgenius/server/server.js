@@ -15,6 +15,7 @@ const stripeService = require('./stripeService');
 const inventoryService = require('./inventoryService');
 const emailService = require('./emailService');
 const reminderService = require('./reminderService');
+const dailyDigestService = require('./dailyDigestService');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -209,7 +210,7 @@ Standard terms and conditions apply. The Vendor agrees to maintain appropriate i
       vendor: { name, email, company }, // Legacy field for compatibility
       content: contractText,
       text: contractText, // Legacy field for compatibility
-      status: 'draft',
+      status: 'Draft',
       createdAt: Date.now()
     };
     console.log(`[Server] ✅ Contract ${contractId} created successfully`);
@@ -509,7 +510,7 @@ app.post('/api/contracts/sign', async (req, res) => {
 
     // Update Status in Sheets
     console.log(`[Server] 📝 Marking contract ${contractId} as SIGNED`);
-    contract.status = contract.vendorDetails?.depositAmount > 0 ? 'pending_deposit' : (contract.vendorDetails?.totalAmount > 0 ? 'pending_balance' : 'signed');
+    contract.status = 'Signed';
     
     await sheetsService.syncPaymentStatus(contractId, contract.status);
     console.log(`[Server] ✅ Contract ${contractId} updated in Sheets - Status: ${contract.status}`);
@@ -724,4 +725,5 @@ app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   // Start Automated Reminders
   reminderService.initReminders();
+  dailyDigestService.initDailyDigest();
 });
