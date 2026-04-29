@@ -73,22 +73,14 @@ export const sendVendorData = async (formData: VendorFormData, contractId?: stri
     };
     console.log("[VendorApp] Step 2: Sending REAL link to Make.com:", payload);
 
-    if (!MAKE_WEBHOOK_URL || MAKE_WEBHOOK_URL.includes("INSERT_MAKE_WEBHOOK_URL_HERE")) {
-      console.warn("--- MAKE.COM WEBHOOK SIMULATION ---");
-      console.warn("Generated Link:", magicLink);
-      console.warn("Payload:", payload);
-      await new Promise(r => setTimeout(r, 1000));
-      return true;
+    // 3. Mark as SENT in backend
+    try {
+      await fetch(`${BACKEND_URL}/api/contracts/${finalContractId}/sent`, { method: 'POST' });
+      console.log(`[VendorApp] Status updated to SENT for ${finalContractId}`);
+    } catch (sentErr) {
+      console.warn("[VendorApp] Failed to update status to SENT", sentErr);
     }
 
-    // // 3. Send POST request to Make.com
-    // await fetch(MAKE_WEBHOOK_URL, {
-    //   method: "POST",
-    //   headers: { "Content-Type": "application/json" },
-    //   body: JSON.stringify(payload),
-    // });
-
-    // console.log("[VendorApp] SUCCESS: Webhook triggered.");
     return true;
   } catch (error) {
     console.error("[VendorApp] ❌ Failed to create contract or trigger webhook:", error);

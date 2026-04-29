@@ -60,7 +60,7 @@ export interface VendorDetails {
   depositAmount?: number;
 }
 
-export type ContractStatus = 'draft' | 'sent' | 'signed' | 'pending_deposit' | 'pending_balance' | 'paid' | 'void';
+export type ContractStatus = 'Draft' | 'sent' | 'signed' | 'Pending deposit' | 'Pending balance' | 'paid' | 'void';
 
 export interface Contract {
   id: string;

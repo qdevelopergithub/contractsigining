@@ -15,7 +15,13 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
   const [generatedLink, setGeneratedLink] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [previewInfo, setPreviewInfo] = useState<{ url: string, name: string } | null>(null);
-  const [inventory, setInventory] = useState<Array<{ fixtureName: string, available: number }>>([]);
+  const [inventory, setInventory] = useState<Array<{
+    fixtureName: string;
+    available: number;
+    totalStock: number;
+    alertThreshold: number;
+    isSoldOut: boolean;
+  }>>([]);
 
   // Fetch Live Inventory on Mount
   React.useEffect(() => {
@@ -24,7 +30,19 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
         const backendUrl = import.meta.env.VITE_BACKEND_URL || 'https://contractsigining.onrender.com';
         const res = await fetch(`${backendUrl}/api/inventory`);
         const data = await res.json();
-        if (data.success) setInventory(data.inventory);
+        // API may return { fixtures: [...] } or { inventory: [...] }
+        // Field names may be name/availableCount (sheetsService) or fixtureName/available (inventoryService)
+        const raw: any[] = data.fixtures || data.inventory || [];
+        const normalized = raw
+          .map((item: any) => ({
+            fixtureName:    item.name         || item.fixtureName || '',
+            available:      item.availableCount ?? item.available ?? 0,
+            totalStock:     item.totalStock   || 0,
+            alertThreshold: item.alertThreshold || 2,
+            isSoldOut:      item.isSoldOut    || false,
+          }))
+          .filter((item: { fixtureName: string }) => item.fixtureName);
+        if (normalized.length > 0) setInventory(normalized);
       } catch (e) {
         console.error('Failed to fetch inventory:', e);
       }
@@ -52,12 +70,16 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
     notes: '',
   });
 
-  // PRICING CONFIGURATION (Editable placeholders)
-  const PRICING = {
-    BOOTH_BASE_PRICE: 1000, 
-    CUSTOM_BOOTH_MULTIPLIER: 250, // Per custom fixture
-    CC_FEE_PERCENTAGE: 0.0299 // 2.99%
+  // PRICING CONFIGURATION – client-provided rates (April 2026)
+  const PRICING: Record<string, number> = {
+    "1 Standard || (4 Fixtures)":    8000,
+    "1.5 Standard || (6 Fixtures)": 12000,
+    "2 Standard || (8 Fixtures)":   16000,
+    "2.5 Standard || (10 Fixtures)": 20000,
+    "Accessory Booth (2 Fixtures)":  4500,
+    "Accessory Booth (3 Fixtures)":  6500,
   };
+  const CC_FEE_PERCENTAGE = 0.0299;
 
   const CATEGORY_OPTIONS = [
     'Resort', 'Men’s', 'Beauty / Body', 'Swim', 'Footwear',
@@ -65,16 +87,7 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
     'Accessories – Bags'
   ];
 
-  const VALID_FIXTURES = [
-    'Clothing Rail / Rack',
-    'Rolling Rack',
-    'Double Hang',
-    'Rolling Rack with Shelves',
-    'Accessory Table',
-    'Accessory Shelf',
-    '2 Accessory Shelves (Stacked)',
-    'Fitting Screen'
-  ];
+  const VALID_FIXTURES = inventory.map((i: { fixtureName: string }) => i.fixtureName);
 
   const FIXTURE_IMAGES: Record<string, string> = {
     'Rolling Rack': '/assets/fixtures/rolling_rack.png',
@@ -107,26 +120,33 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
   const currentTotalFixtures = formData.selectedFixtures.reduce((sum, f) => sum + f.quantity, 0);
   const totalQuota = calculateTotalQuota(formData.boothSize, formData.customBoothSize);
 
-  // Live Pricing Calculation
+  // Live Pricing Calculation – real client rates
   const getCalculatedPrices = () => {
     let base = 0;
-    
-    // Calculate Booth Base Cost
-    if (formData.boothSize === "Custom Fixture") {
-      base = totalQuota * PRICING.CUSTOM_BOOTH_MULTIPLIER;
+
+    if (PRICING[formData.boothSize] !== undefined) {
+      // Named booth with a fixed price
+      base = PRICING[formData.boothSize];
     } else {
-      // Estimate cost by parsing the standard booth multiplier
-      const boothMatch = formData.boothSize.match(/([\d.]+)\s+Standard/);
-      const multiplier = boothMatch ? parseFloat(boothMatch[1]) : 1;
-      base = PRICING.BOOTH_BASE_PRICE * multiplier;
+      // Custom Fixture or any booth beyond 10 fixtures:
+      // $20,000 + ((fixtures – 10) / 2) × $4,000
+      const fixtures = formData.boothSize === "Custom Fixture"
+        ? totalQuota
+        : (() => {
+            const m = formData.boothSize.match(/\((\d+)\s+Fixtures?\)/i);
+            return m ? parseInt(m[1]) : totalQuota;
+          })();
+      base = fixtures <= 10
+        ? 20000
+        : 20000 + (Math.ceil((fixtures - 10) / 2)) * 4000;
     }
 
-    const ccFee = formData.paymentMode === 'Credit Card' ? base * PRICING.CC_FEE_PERCENTAGE : 0;
+    const ccFee = formData.paymentMode === 'Credit Card' ? base * CC_FEE_PERCENTAGE : 0;
     const total = base + ccFee;
 
     return { base, ccFee, total };
   };
-  
+
   const currentPrices = getCalculatedPrices();
 
   const handleBrandChange = (index: number, field: keyof BrandInfo, value: string) => {
@@ -215,19 +235,37 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
     }
   }
 
+  const getInvItem = (fixtureName: string) =>
+    inventory.find((i: { fixtureName: string }) => i.fixtureName.toLowerCase() === fixtureName.toLowerCase());
+
   const handleFixtureChange = (index: number, field: string, value: any) => {
     const newFixtures = [...formData.selectedFixtures];
+
     if (field === 'type') {
-      if (value === '2 Accessory Shelves (Stacked)') {
-        newFixtures[index] = { ...newFixtures[index], type: value, quantity: 2 };
-      } else {
-        newFixtures[index] = { ...newFixtures[index], type: value, quantity: 1 };
+      // Reset quantity to 1 (or 2 for stacked shelves) when type changes
+      const defaultQty = value === '2 Accessory Shelves (Stacked)' ? 2 : 1;
+      newFixtures[index] = { ...newFixtures[index], type: value, quantity: defaultQty };
+
+    } else if (field === 'quantity') {
+      const invItem = getInvItem(newFixtures[index].type);
+      const min = newFixtures[index].type === '2 Accessory Shelves (Stacked)' ? 2 : 1;
+      const max = invItem ? invItem.available : 999;
+      const capped = Math.min(Math.max(parseInt(value) || min, min), max);
+      newFixtures[index] = { ...newFixtures[index], quantity: capped };
+
+      // Show inline error if user tried to exceed available stock
+      if (invItem && parseInt(value) > invItem.available) {
+        setErrors(prev => ({
+          ...prev,
+          [`fixtureQty_${index}`]: `Only ${invItem.available} available in stock`,
+        }));
+        setFormData((prev: typeof formData) => ({ ...prev, selectedFixtures: newFixtures }));
+        return;
       }
-    } else if (field === 'quantity' && newFixtures[index].type === '2 Accessory Shelves (Stacked)') {
-      newFixtures[index] = { ...newFixtures[index], [field]: Math.max(2, value) };
     } else {
       newFixtures[index] = { ...newFixtures[index], [field]: value };
     }
+
     setFormData(prev => ({ ...prev, selectedFixtures: newFixtures }));
 
     // Clear error
@@ -886,29 +924,44 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
                       {calculateFurniture(totalQuota).tables} Table(s) & {calculateFurniture(totalQuota).chairs} Chairs
                     </div>
                   </div>
-                  {formData.selectedFixtures.map((fix, idx) => (
+                  {formData.selectedFixtures.map((fix, idx) => {
+                    const selectedInvItem = getInvItem(fix.type);
+                    const isLow = selectedInvItem && !selectedInvItem.isSoldOut && selectedInvItem.available <= selectedInvItem.alertThreshold;
+                    const maxQty = selectedInvItem ? selectedInvItem.available : 999;
+                    const minQty = fix.type === '2 Accessory Shelves (Stacked)' ? 2 : 1;
+                    return (
                     <div key={idx} className="flex gap-2 items-start">
                       <div className="flex-1 relative">
                         <select
-                          className="w-full px-3 pr-14 py-1.5 border rounded text-sm appearance-none"
+                          className={`w-full px-3 pr-14 py-1.5 border rounded text-sm appearance-none ${isLow ? 'border-amber-400' : ''}`}
                           value={fix.type}
                           onChange={(e) => handleFixtureChange(idx, 'type', e.target.value)}
                         >
-                          {VALID_FIXTURES
-                            .map(type => {
-                              const invItem = inventory.find(i => i.fixtureName.toLowerCase() === type.toLowerCase());
-                              const isSoldOut = invItem && invItem.available <= 0;
-                              return (
-                                <option 
-                                  key={type} 
-                                  value={type} 
-                                  disabled={isSoldOut && fix.type !== type}
-                                >
-                                  {type} {isSoldOut ? '(SOLD OUT)' : invItem ? `(${invItem.available} left)` : ''}
-                                </option>
-                              );
-                            })}
+                          {VALID_FIXTURES.map((type: string) => {
+                            const invItem = getInvItem(type);
+                            const soldOut = invItem ? invItem.isSoldOut : false;
+                            const low = invItem && !invItem.isSoldOut && invItem.available <= invItem.alertThreshold;
+                            const label = soldOut
+                              ? `${type} — SOLD OUT`
+                              : invItem
+                                ? `${type} (${invItem.available} left${low ? ' · LOW' : ''})`
+                                : type;
+                            return (
+                              <option
+                                key={type}
+                                value={type}
+                                disabled={soldOut && fix.type !== type}
+                              >
+                                {label}
+                              </option>
+                            );
+                          })}
                         </select>
+                        {isLow && (
+                          <span className="absolute left-2 -bottom-4 text-[10px] font-semibold text-amber-600">
+                            ⚠ Low stock — {selectedInvItem!.available} remaining
+                          </span>
+                        )}
                         {FIXTURE_IMAGES[fix.type] && (
                           <button
                             type="button"
@@ -924,16 +977,16 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
                         <input
                           type="number"
                           id={`fixtureQty_${idx}`}
-                          className="w-20 px-3 py-1.5 border rounded text-sm"
+                          className={`w-20 px-3 py-1.5 border rounded text-sm ${errors[`fixtureQty_${idx}`] ? 'border-red-400' : ''}`}
                           value={fix.quantity}
-                          max={999}
-                          min={fix.type === '2 Accessory Shelves (Stacked)' ? 2 : 0}
+                          max={maxQty}
+                          min={minQty}
                           onInput={(e) => {
                             if (e.currentTarget.value.length > 3) {
                               e.currentTarget.value = e.currentTarget.value.slice(0, 3);
                             }
                           }}
-                          onChange={(e) => handleFixtureChange(idx, 'quantity', parseInt(e.target.value) || 0)}
+                          onChange={(e) => handleFixtureChange(idx, 'quantity', parseInt(e.target.value) || minQty)}
                         />
                         {errors[`fixtureQty_${idx}`] && <p className="text-red-500 text-[10px] mt-0.5 whitespace-nowrap">{errors[`fixtureQty_${idx}`]}</p>}
                       </div>
@@ -941,7 +994,8 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
                         <button type="button" onClick={() => removeFixtureRow(idx)} className="text-red-500 p-1">×</button>
                       )}
                     </div>
-                  ))}
+                    );
+                  })}
                   <button
                     type="button"
                     onClick={addFixtureRow}
@@ -1028,14 +1082,14 @@ export const CreateContractForm: React.FC<Props> = ({ navigate }) => {
                   <span>Booth Allocation ({formData.finalBoothSize})</span>
                   <span className="font-medium">${currentPrices.base.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                 </div>
-                
+
                 {formData.paymentMode === 'Credit Card' && (
                   <div className="flex justify-between items-center text-sm text-amber-600">
                     <span>Credit Card Processing Fee (2.99%)</span>
                     <span className="font-medium">${currentPrices.ccFee.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                   </div>
                 )}
-                
+
                 <div className="pt-4 border-t border-gray-200 flex justify-between items-center bg-gray-50 -mx-6 px-6 py-4 mt-2">
                   <span className="text-base font-bold text-gray-900">Total Estimated Cost</span>
                   <span className="text-xl font-bold text-indigo-700">

@@ -1,6 +1,6 @@
 import React from 'react';
 import { VendorFormData, BoothSize, FixtureType, PaymentMode, SelectedFixture, ExhibitorType, BrandInfo, ContactInfo } from '../types';
-import { User, Mail, MapPin, Building2, LayoutGrid, Lamp, ShoppingCart, CreditCard, FileText, Send, Loader2, Globe, Instagram, Phone, Plus, Trash2, CheckSquare, FileCheck, Layers, Eye, X } from 'lucide-react';
+import { User, Mail, MapPin, Building2, LayoutGrid, Lamp, ShoppingCart, CreditCard, FileText, Send, Loader2, Globe, Instagram, Phone, Plus, Trash2, CheckSquare, FileCheck, Layers, Eye, X, Receipt } from 'lucide-react';
 
 interface VendorFormProps {
   data: VendorFormData;
@@ -8,6 +8,19 @@ interface VendorFormProps {
   onSubmit: () => void;
   isProcessing: boolean;
   processingText?: string;
+}
+
+interface LiveFixture {
+  name: string;
+  availableCount: number;
+  isSoldOut: boolean;
+  status: 'ok' | 'low' | 'soldout';
+}
+
+interface LiveBooth {
+  name: string;
+  maxFixtures: number;
+  basePrice: number;
 }
 
 const CATEGORY_OPTIONS = [
@@ -59,6 +72,33 @@ const VendorForm: React.FC<VendorFormProps> = ({
 }) => {
   const [errors, setErrors] = React.useState<Record<string, string>>({});
   const [previewInfo, setPreviewInfo] = React.useState<{ url: string, name: string } | null>(null);
+  const [liveFixtures, setLiveFixtures] = React.useState<LiveFixture[]>([]);
+  const [liveBooths, setLiveBooths] = React.useState<LiveBooth[]>([]);
+  const [loading, setLoading] = React.useState(true);
+
+  const rawBackendUrl = import.meta.env.VITE_BACKEND_URL || "https://contract-genius-backend-93t6.onrender.com";
+  const BACKEND_URL = rawBackendUrl.startsWith('http') ? rawBackendUrl : `https://${rawBackendUrl}`;
+
+  React.useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [fixRes, boothRes] = await Promise.all([
+          fetch(`${BACKEND_URL}/api/fixtures`),
+          fetch(`${BACKEND_URL}/api/booths`)
+        ]);
+        const fixData = await fixRes.json();
+        const boothData = await boothRes.json();
+
+        if (fixData.success) setLiveFixtures(fixData.fixtures);
+        if (boothData.success) setLiveBooths(boothData.booths);
+      } catch (err) {
+        console.error("Failed to fetch live data", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, [BACKEND_URL]);
 
   const validate = (): { isValid: boolean, currentErrors: Record<string, string> } => {
     const newErrors: Record<string, string> = {};
@@ -111,6 +151,15 @@ const VendorForm: React.FC<VendorFormProps> = ({
       if (fixture.quantity <= 0) {
         newErrors[`fixtureQty_${idx}`] = "Quantity must be at least 1";
       }
+
+      // Live Inventory Check
+      const liveFix = liveFixtures.find(f => f.name === fixture.type);
+      if (liveFix) {
+        if (fixture.quantity > liveFix.availableCount) {
+          newErrors[`fixtureQty_${idx}`] = `Only ${liveFix.availableCount} available`;
+        }
+      }
+
       // Check for leading zeros via input raw value check
       const input = document.getElementById(`fixtureQty_${idx}`) as HTMLInputElement;
       if (input && input.value.length > 1 && input.value.startsWith('0')) {
@@ -118,9 +167,22 @@ const VendorForm: React.FC<VendorFormProps> = ({
       }
     });
 
+    // Fixture Sum Validation
+    const currentTotalFixtures = data.selectedFixtures.reduce((sum, f) => sum + f.quantity, 0);
+    const totalQuota = calculateTotalQuota(data.boothSize, data.customBoothSize);
+    if (currentTotalFixtures > totalQuota) {
+      newErrors.fixtureSum = `Total fixtures (${currentTotalFixtures}) exceeds booth quota (${totalQuota}). Please reduce fixture quantities.`;
+    }
+
     if (!data.address?.trim()) newErrors.address = "Address is required";
 
     setErrors(newErrors);
+    
+    // If there's a sum error, scroll to the allocation section
+    if (newErrors.fixtureSum) {
+        document.getElementById('fixture-allocation-header')?.scrollIntoView({ behavior: 'smooth' });
+    }
+
     return { isValid: Object.keys(newErrors).length === 0, currentErrors: newErrors };
   };
 
@@ -142,25 +204,58 @@ const VendorForm: React.FC<VendorFormProps> = ({
     }
   };
 
-  const calculateTotalQuota = (size: BoothSize, customSize?: string): number => {
+  const calculateTotalQuota = (size: BoothSize | string, customSize?: string): number => {
     if (size === BoothSize.CUSTOM_LARGE && customSize) {
-      // In Custom Booth, the entered number IS the FIXTURE count.
       return parseFloat(customSize) || 0;
     }
+    // Use live spreadsheet data first
+    const liveBooth = liveBooths.find(b => b.name === size);
+    if (liveBooth) return liveBooth.maxFixtures;
+    // Fallback: parse from string like "1 Standard || (4 Fixtures)"
     const match = size.match(/\((\d+)\s+Fixtures\)/);
     if (match) return parseInt(match[1]);
     return 4;
   };
 
   const calculateFurniture = (fixtures: number) => {
-    if (fixtures < 4) return { tables: 1, chairs: 2 };
+    if (fixtures < 4) return { tables: 1, chairs: 3 };
     const tables = Math.floor(fixtures / 4);
-    const chairs = tables * 3;
+    const chairs = tables * 4;
     return { tables, chairs };
+  };
+
+  const CC_FEE_RATE = 0.0299;
+
+  const calculateBoothPrice = (boothSize: string, totalFixtures: number): number => {
+    // 1. Live spreadsheet price takes priority
+    const liveConfig = liveBooths.find(b => b.name === boothSize);
+    if (liveConfig && liveConfig.basePrice > 0) return liveConfig.basePrice;
+
+    // 2. Custom Booth: use fixture-count formula
+    if (boothSize === BoothSize.CUSTOM_LARGE) {
+      if (totalFixtures <= 0) return 0;
+      if (totalFixtures <= 10) return totalFixtures * 2000;
+      return 20000 + ((totalFixtures - 10) / 2) * 4000;
+    }
+
+    // 3. Hardcoded fallback prices (used when backend is unavailable)
+    if (boothSize === BoothSize.ACCESSORY_TWO)       return 4500;
+    if (boothSize === BoothSize.ACCESSORY_THREE)     return 6500;
+    if (boothSize === BoothSize.ONE_STANDARD)        return 8000;
+    if (boothSize === BoothSize.ONE_HALF_STANDARD)   return 12000;
+    if (boothSize === BoothSize.TWO_STANDARD)        return 16000;
+    if (boothSize === BoothSize.TWO_HALF_STANDARD)   return 20000;
+    if (totalFixtures > 10) return 20000 + ((totalFixtures - 10) / 2) * 4000;
+
+    return 0;
   };
 
   const totalQuota = calculateTotalQuota(data.boothSize, data.customBoothSize);
   const currentTotalFixtures = data.selectedFixtures.reduce((sum, f) => sum + f.quantity, 0);
+
+  const basePrice = calculateBoothPrice(data.boothSize, totalQuota);
+  const ccFee = data.paymentMode === PaymentMode.CREDIT_CARD ? basePrice * CC_FEE_RATE : 0;
+  const totalPrice = basePrice + ccFee;
 
   const handleChange = (field: keyof VendorFormData, value: any) => {
     const newData = { ...data, [field]: value };
@@ -674,13 +769,26 @@ const VendorForm: React.FC<VendorFormProps> = ({
                     value={data.boothSize}
                     onChange={(e) => handleChange('boothSize', e.target.value as BoothSize)}
                     className={inputClass}
+                    disabled={loading}
                   >
-                    {Object.values(BoothSize).map((size) => (
-                      <option key={size} value={size}>
-                        {size}
-                      </option>
-                    ))}
+                    {liveBooths.length > 0 ? (
+                      liveBooths.map((booth) => (
+                        <option
+                          key={booth.name}
+                          value={(booth as any).isCustom ? BoothSize.CUSTOM_LARGE : booth.name}
+                        >
+                          {booth.name}
+                        </option>
+                      ))
+                    ) : (
+                      Object.values(BoothSize).map((size) => (
+                        <option key={size} value={size}>{size}</option>
+                      ))
+                    )}
                   </select>
+                  {loading && (
+                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 animate-spin" />
+                  )}
                 </div>
 
                 {data.boothSize === BoothSize.CUSTOM_LARGE && (
@@ -716,12 +824,19 @@ const VendorForm: React.FC<VendorFormProps> = ({
               </div>
 
               <div className="p-5 bg-slate-50 rounded-xl border border-slate-200 space-y-4">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between" id="fixture-allocation-header">
                   <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Fixture Allocation</h3>
                   <div className={`text-xs font-bold px-3 py-1 rounded-full ${currentTotalFixtures > totalQuota ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`}>
                     {currentTotalFixtures} / {totalQuota} Fixtures Used
                   </div>
                 </div>
+
+                {errors.fixtureSum && (
+                  <div className="p-3 bg-red-50 border border-red-100 rounded-lg flex items-center gap-2 text-red-600 text-xs font-bold animate-in fade-in slide-in-from-top-1">
+                    <X className="w-4 h-4" />
+                    <span>{errors.fixtureSum}</span>
+                  </div>
+                )}
 
                 <div className="p-3 bg-indigo-50 border border-indigo-100 rounded-lg flex items-center justify-between text-indigo-700">
                   <div className="flex items-center gap-2">
@@ -745,14 +860,13 @@ const VendorForm: React.FC<VendorFormProps> = ({
                             onChange={(e) => handleFixtureChange(idx, 'type', e.target.value as FixtureType)}
                             className="w-full pl-10 pr-14 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-accent"
                           >
-                            {VALID_FIXTURES
-                              .filter(type => {
-                                if (type === FixtureType.FITTING_SCREEN) return totalQuota >= 6;
-                                return true;
-                              })
-                              .map((type) => (
-                                <option key={type} value={type}>{type}</option>
-                              ))}
+                            {liveFixtures.length > 0 ? liveFixtures.filter(f => !f.isSoldOut).map((f) => (
+                              <option key={f.name} value={f.name}>
+                                {f.name}{f.status === 'low' ? ` (Only ${f.availableCount} left)` : ''}
+                              </option>
+                            )) : VALID_FIXTURES.map((type) => (
+                              <option key={type} value={type}>{type}</option>
+                            ))}
                           </select>
                           {FIXTURE_IMAGES[fix.type] && (
                             <button
@@ -775,8 +889,10 @@ const VendorForm: React.FC<VendorFormProps> = ({
                             type="number"
                             min={fix.type === FixtureType.ACCESSORY_SHELVES_STACKED ? 2 : 1}
                             value={fix.quantity}
-                            onChange={(e) => handleFixtureChange(idx, 'quantity', parseInt(e.target.value) || 0)}
-                            max={999}
+                            onChange={(e) => {
+                              const val = parseInt(e.target.value) || 0;
+                              handleFixtureChange(idx, 'quantity', val);
+                            }}
                             onInput={(e) => {
                               if (e.currentTarget.value.length > 3) {
                                 e.currentTarget.value = e.currentTarget.value.slice(0, 3);
@@ -849,6 +965,59 @@ const VendorForm: React.FC<VendorFormProps> = ({
                   </select>
                 </div>
               </div>
+            </div>
+          </section>
+
+          {/* Live Order Summary */}
+          <section className="bg-white rounded-xl shadow-lg border border-blue-200 overflow-hidden relative">
+            <div className="absolute top-0 left-0 w-1 h-full bg-accent" />
+            <div className="p-6 md:p-8">
+              <h2 className="text-xl font-bold text-blue-900 mb-6 flex items-center gap-2 border-b border-blue-100 pb-4">
+                <Receipt className="w-5 h-5 text-accent" />
+                Live Order Summary
+              </h2>
+
+              <div className="space-y-3">
+                <div className="flex justify-between items-center text-sm text-slate-600">
+                  <span>Booth Allocation</span>
+                  <span className="text-xs text-slate-400 italic">{data.finalBoothSize || data.boothSize}</span>
+                </div>
+                
+                <div className="flex justify-between items-center text-sm text-slate-600 border-b border-slate-50 pb-2">
+                  <span>Fixtures Included</span>
+                  <span className="font-medium text-slate-800">{totalQuota} Fixtures</span>
+                </div>
+
+                <div className="flex justify-between items-center pt-2">
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium text-slate-700">Base Price</span>
+                    {totalQuota > 10 && (
+                      <span className="text-[10px] text-slate-400">(Formula: $20k + {totalQuota - 10} extra fixtures)</span>
+                    )}
+                  </div>
+                  <span className="text-sm font-semibold text-slate-900">
+                    {basePrice > 0 ? `$${basePrice.toLocaleString('en-US', { minimumFractionDigits: 2 })}` : '—'}
+                  </span>
+                </div>
+
+                {data.paymentMode === PaymentMode.CREDIT_CARD && basePrice > 0 && (
+                  <div className="flex justify-between items-center text-sm text-amber-600">
+                    <span>Credit Card Processing Fee (2.99%)</span>
+                    <span className="font-medium">${ccFee.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                )}
+
+                <div className="pt-4 border-t border-slate-200 flex justify-between items-center bg-slate-50 -mx-6 px-6 py-4 md:-mx-8 md:px-8">
+                  <span className="text-base font-bold text-slate-900">Total Estimated Cost</span>
+                  <span className="text-2xl font-bold text-accent">
+                    {totalPrice > 0 ? `$${totalPrice.toLocaleString('en-US', { minimumFractionDigits: 2 })}` : '—'}
+                  </span>
+                </div>
+              </div>
+
+              <p className="text-xs text-slate-400 text-center mt-4">
+                * This total will be reflected on your final contract draft.
+              </p>
             </div>
           </section>
 

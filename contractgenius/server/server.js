@@ -15,6 +15,7 @@ const stripeService = require('./stripeService');
 const inventoryService = require('./inventoryService');
 const emailService = require('./emailService');
 const reminderService = require('./reminderService');
+const dailyDigestService = require('./dailyDigestService');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -23,7 +24,7 @@ const PORT = process.env.PORT || 3001;
 const allowedOrigins = [
   'http://localhost:3002',
   'http://localhost:3003',
-  'http://localhost:3004',
+  'https://contract-genius-backend-93t6.onrender.com',
   process.env.FRONTEND_URL,
   process.env.ADMIN_URL
 ].filter(Boolean);
@@ -207,48 +208,95 @@ Standard terms and conditions apply. The Vendor agrees to maintain appropriate i
       vendor: { name, email, company }, // Legacy field for compatibility
       content: contractText,
       text: contractText, // Legacy field for compatibility
-      status: 'draft',
+      status: 'Draft',
       createdAt: Date.now()
     };
     console.log(`[Server] ✅ Contract ${contractId} created successfully`);
 
     // 2.5 Aggregate Data to Google Sheets (Non-blocking)
-   // NEW ✅ (Blocking + Error Handling)
-try {
-  const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
-  credentials.private_key = credentials.private_key.replace(/\\n/g, '\n');
+    // Build row matching BOOKING_HEADERS column order exactly:
+    // A:Date, B:ContractID, C:ExhibitorType, D:Company/Address, E:Brand(s),
+    // F:BrandWebsites, G:BrandInstagram, H:ContactName, I:ContactTitle,
+    // J:ContactEmail, K:ContactPhone, L:ExtraContacts, M:Categories,
+    // N:BoothSize, O:CustomBoothSize, P:CustomBoothRequirements,
+    // Q:Fixtures, R:EventDate(s), S:SpecialRequirements, T:PaymentMode,
+    // U:Notes, V:BaseAmount, W:CCFee, X:TotalAmount, Y:Status
+    const vendor = contractData.vendorDetails;
+    const primaryContact = vendor.contacts?.[0] || {};
+    const extraContacts = vendor.contacts?.slice(1).filter(c => c.name)
+      .map(c => `${c.name}${c.title ? ` (${c.title})` : ''} — ${c.email}`).join(' | ') || 'N/A';
+    const brandsStr    = vendor.brands?.filter(b => b.brandName).map(b => b.brandName).join(', ') || 'N/A';
+    const websitesStr  = vendor.brands?.filter(b => b.website).map(b => b.website).join(', ') || 'N/A';
+    const instagramStr = vendor.brands?.filter(b => b.instagram).map(b => b.instagram).join(', ') || 'N/A';
+    const fixturesStr  = vendor.selectedFixtures?.map(f => `${f.type} x${f.quantity}`).join(', ') || 'N/A';
+    const catsStr      = vendor.categories?.map(c => c === 'Other' ? `Other: ${vendor.otherCategory || ''}` : c).join(', ') || 'N/A';
+    const eventDatesStr = Array.isArray(vendor.eventDates) ? vendor.eventDates.join(', ') : (vendor.eventDates || 'N/A');
 
-  console.log("👉 Using Service Account:", credentials.client_email);
+    const sheetRow = [
+      new Date(contractData.createdAt).toLocaleString(),           // A: Date
+      contractData.id,                                              // B: Contract ID
+      vendor.exhibitorType || 'N/A',                               // C: Exhibitor Type
+      `${vendor.company || 'N/A'} / ${vendor.address || 'N/A'}`,  // D: Company / Address
+      brandsStr,                                                    // E: Brand(s)
+      websitesStr,                                                  // F: Brand Websites
+      instagramStr,                                                 // G: Brand Instagram
+      primaryContact.name || 'N/A',                                // H: Contact Name
+      primaryContact.title || 'N/A',                               // I: Contact Title
+      primaryContact.email || vendor.email || 'N/A',               // J: Contact Email
+      primaryContact.phone || 'N/A',                               // K: Contact Phone
+      extraContacts,                                                // L: Extra Contacts
+      catsStr,                                                      // M: Categories
+      vendor.finalBoothSize || vendor.boothSize || 'N/A',          // N: Booth Size
+      vendor.customBoothSize || 'N/A',                             // O: Custom Booth Size
+      vendor.customBoothRequirements || 'N/A',                     // P: Custom Booth Reqs
+      fixturesStr,                                                  // Q: Fixtures
+      eventDatesStr,                                                // R: Event Date(s)
+      vendor.specialRequirements || 'N/A',                         // S: Special Requirements
+      vendor.paymentMode || 'Credit Card',                         // T: Payment Mode
+      vendor.notes || 'N/A',                                       // U: Notes
+      `$${vendor.baseAmount || 0}`,                                // V: Base Amount
+      `$${vendor.ccFee || 0}`,                                     // W: CC Fee
+      `$${vendor.totalAmount || 0}`,                               // X: Total Amount
+      contractData.status || 'Draft'                               // Y: Status
+    ];
 
-  const sheetResponse = await sheetsService.appendContractRow(contractData);
+    sheetsService.appendBookingRow(sheetRow).catch(err => {
+      console.error(`[Server] Non-fatal error aggregating to Google Sheets:`, err.message);
+    });
 
-  if (!sheetResponse) {
-    throw new Error("No response from Google Sheets");
-  }
+    // 2.6 Update Fixture Inventory booked counts (Non-blocking)
+    if (vendor.selectedFixtures?.length > 0) {
+      (async () => {
+        try {
+          const currentInventory = await sheetsService.getFixtureInventory();
+          const updates = [];
 
-  console.log("✅ Sheet Response:", sheetResponse?.data);
+          for (const selected of vendor.selectedFixtures) {
+            const inventoryItem = currentInventory.find(
+              inv => inv.name?.toLowerCase().trim() === selected.type?.toLowerCase().trim()
+            );
+            if (inventoryItem) {
+              const newBookedCount = (inventoryItem.bookedCount || 0) + (selected.quantity || 0);
+              updates.push({
+                rowIndex: inventoryItem.rowIndex,
+                newBookedCount,
+                totalStock: inventoryItem.totalStock
+              });
+              console.log(`[Server] 📦 Updating inventory: ${selected.type} — booked ${inventoryItem.bookedCount} → ${newBookedCount}`);
+            } else {
+              console.warn(`[Server] ⚠️ Fixture not found in inventory: "${selected.type}"`);
+            }
+          }
 
-} catch (sheetError) {
-  console.error("❌ FULL ERROR:", sheetError);
-
-  return res.status(500).json({
-    success: false,
-    message: "Failed to save data to Google Sheets",
-
-    // 👇 IMPORTANT DEBUG INFO (frontend me dikhega)
-    debug: {
-      errorMessage: sheetError.message,
-      fullError: sheetError?.response?.data || null,
-          spreadsheetId: process.env.GOOGLE_SPREADSHEET_ID || "Not found",
-
-      serviceAccount: process.env.GOOGLE_SERVICE_ACCOUNT_JSON
-        ? JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON).client_email
-        : "No credentials found",
-      hasCredentials: !!process.env.GOOGLE_SERVICE_ACCOUNT_JSON,
-      timestamp: new Date().toISOString()
+          if (updates.length > 0) {
+            await sheetsService.updateFixtureBookedCounts(updates);
+            console.log(`[Server] ✅ Inventory updated for ${updates.length} fixture type(s)`);
+          }
+        } catch (err) {
+          console.error(`[Server] Non-fatal error updating fixture inventory:`, err.message);
+        }
+      })();
     }
-  });
-}
 
     // 3. Define Magic Link for the vendor
     const signingAppUrl = process.env.SIGNING_APP_URL || "https://contractsigining-9kgu.vercel.app";
@@ -281,7 +329,6 @@ try {
         })
       }).catch(err => console.error("[Server] Make.com Webhook Error (Draft):", err.message));
     }
-
     res.json({
       success: true,
       message: "Contract created successfully",
@@ -461,7 +508,7 @@ app.post('/api/contracts/sign', async (req, res) => {
 
     // Update Status in Sheets
     console.log(`[Server] 📝 Marking contract ${contractId} as SIGNED`);
-    contract.status = contract.vendorDetails?.depositAmount > 0 ? 'pending_deposit' : (contract.vendorDetails?.totalAmount > 0 ? 'pending_balance' : 'signed');
+    contract.status = 'Signed';
     
     await sheetsService.syncPaymentStatus(contractId, contract.status);
     console.log(`[Server] ✅ Contract ${contractId} updated in Sheets - Status: ${contract.status}`);
@@ -625,6 +672,41 @@ app.get('/api/inventory', async (req, res) => {
   }
 });
 
+// Fixture cache to avoid hammering the sheet on every form load
+let fixtureCache = null;
+let lastCacheUpdate = 0;
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+// GET /api/fixtures - Returns all fixture availability for the vendor form dropdown
+app.get('/api/fixtures', async (_req, res) => {
+  try {
+    const now = Date.now();
+    if (fixtureCache && (now - lastCacheUpdate < CACHE_DURATION)) {
+      return res.json({ success: true, fixtures: fixtureCache });
+    }
+
+    const fixtures = await sheetsService.getFixtureInventory();
+    fixtureCache = fixtures;
+    lastCacheUpdate = now;
+
+    res.json({ success: true, fixtures });
+  } catch (error) {
+    console.error('[Server] Failed to load fixtures:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// GET /api/booths - Returns booth configuration from the Booth Configuration sheet
+app.get('/api/booths', async (_req, res) => {
+  try {
+    const booths = await sheetsService.getBoothConfig();
+    res.json({ success: true, booths });
+  } catch (error) {
+    console.error('[Server] Failed to load booth config:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // POST /api/contracts/:id/mark-paid — Manually mark a contract as PAID (admin use)
 app.post('/api/contracts/:id/mark-paid', async (req, res) => {
   try {
@@ -650,4 +732,5 @@ app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   // Start Automated Reminders
   reminderService.initReminders();
+  dailyDigestService.initDailyDigest();
 });

@@ -21,8 +21,12 @@ const App: React.FC = () => {
     mountedRef.current = true;
     init();
 
+    const handleHashChange = () => init();
+    window.addEventListener('hashchange', handleHashChange);
+
     return () => {
       mountedRef.current = false;
+      window.removeEventListener('hashchange', handleHashChange);
     };
   }, []);
 
