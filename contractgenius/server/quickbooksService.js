@@ -246,8 +246,8 @@ const createInvoice = (qbo, customerId, contractData) => {
     // Fixtures summary for descriptions (no separate $0 line items — QB rejects Amount/UnitPrice mismatch)
     const fixtureLines = (v.selectedFixtures || []).map(f => `${f.type} (Qty: ${f.quantity})`).join(', ') || 'N/A';
     const customerEmail = (
-      vendorData.contacts?.[0]?.email ||
-      vendorData.email ||
+      v.contacts?.[0]?.email ||
+      v.email ||
       ""
     ).trim();
 
