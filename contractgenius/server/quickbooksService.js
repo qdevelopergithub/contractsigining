@@ -22,17 +22,19 @@ let oauthToken = null;
 
 const loadToken = () => {
   try {
-    // 1. Try loading from file (local dev)
+    // 1. Try env var first (survives Render restarts/redeploys)
+    if (process.env.QB_OAUTH_TOKEN) {
+      oauthToken = JSON.parse(process.env.QB_OAUTH_TOKEN);
+      if (oauthToken.realmId) oauthClient.realmId = oauthToken.realmId;
+      console.log('[QB] Loaded OAuth token from QB_OAUTH_TOKEN env var');
+      return;
+    }
+    // 2. Fall back to file (local development)
     if (fs.existsSync(TOKEN_FILE)) {
       const data = fs.readFileSync(TOKEN_FILE, 'utf8');
       oauthToken = JSON.parse(data);
-      console.log('[QB] Loaded stored OAuth token from file');
-      return;
-    }
-    // 2. Fallback: load from env var (production / Render)
-    if (process.env.QB_OAUTH_TOKEN) {
-      oauthToken = JSON.parse(process.env.QB_OAUTH_TOKEN);
-      console.log('[QB] Loaded OAuth token from QB_OAUTH_TOKEN env var');
+      if (oauthToken.realmId) oauthClient.realmId = oauthToken.realmId;
+      console.log('[QB] Loaded OAuth token from file');
     }
   } catch (e) {
     console.error('[QB] Error loading token:', e.message);
@@ -42,7 +44,12 @@ const loadToken = () => {
 const saveToken = (token) => {
   try {
     oauthToken = token;
+    // Keep env var in sync so refreshed tokens are available in current process
+    process.env.QB_OAUTH_TOKEN = JSON.stringify(token);
+    // Also write to file for local development
     fs.writeFileSync(TOKEN_FILE, JSON.stringify(token, null, 2));
+    console.log('[QB] ✅ Token saved. To persist across Render restarts, set this env var in your Render dashboard:');
+    console.log(`[QB] QB_OAUTH_TOKEN=${JSON.stringify(token)}`);
   } catch (e) {
     console.error('[QB] Error saving token:', e.message);
   }
@@ -57,11 +64,15 @@ const getAuthUri = () => {
   });
 };
 
-const createToken = async (url) => {
+const createToken = async (url, realmId) => {
   try {
     const authResponse = await oauthClient.createToken(url);
     const token = authResponse.getJson();
+    // realmId comes from the callback query param — persist it with the token
+    token.realmId = realmId || oauthClient.realmId;
+    if (token.realmId) oauthClient.realmId = token.realmId;
     saveToken(token);
+    console.log(`[QB] Token saved with realmId: ${token.realmId}`);
     return token;
   } catch (e) {
     console.error('Error creating QB token:', e);
@@ -323,17 +334,17 @@ const createInvoice = (qbo, customerId, contractData) => {
 };
 
 const processContractSignatureForQB = async (contractData) => {
-  try {
     if (!oauthToken) {
-      console.log("[QB] Skipping - Not authenticated");
-      return null;
+      throw new Error("[QB] Not authenticated with QuickBooks. Please complete OAuth setup at /auth/quickbooks.");
     }
 
     const vendorData = contractData.vendorDetails || contractData.vendor;
 
-    if (!vendorData || !vendorData.email) {
-      console.log("[QB] Skipping - No vendor data or email");
-      return null;
+    if (!vendorData) {
+      throw new Error("[QB] Missing vendor details on contract.");
+    }
+    if (!vendorData.email) {
+      throw new Error("[QB] Vendor email is required to generate a QuickBooks invoice.");
     }
 
     console.log(`[QB] Processing contract for: ${vendorData.company || vendorData.name}`);
@@ -346,20 +357,29 @@ const processContractSignatureForQB = async (contractData) => {
       createInvoice(qbo, customer.Id, contractData)
     );
 
-    if (!invoice) return null;
+    if (!invoice) throw new Error("[QB] Invoice creation returned no result.");
 
     console.log(`[QB] ✅ Invoice ${invoice.Id} created`);
 
-    const customerEmail =
-      vendorData.contacts?.[0]?.email || vendorData.email;
+    // Trim to avoid whitespace-only strings passing the guard
+    const customerEmail = (
+      vendorData.contacts?.[0]?.email ||
+      vendorData.email ||
+      ""
+    ).trim();
+
+    console.log(`[QB] Customer email resolved: "${customerEmail}"`);
 
     if (!customerEmail) {
-      console.log("[QB] ❌ No email found");
+      console.error("[QB] ❌ No valid email found — skipping invoice send and webhook");
       return invoice;
     }
 
+    const realmId = process.env.QB_COMPANY_ID || oauthToken.realmId || oauthClient.realmId;
+    if (!realmId) throw new Error("[QB] Company ID (realmId) is missing. Re-authenticate at /auth/authUri.");
+
     await fetch(
-      `${QB_API_BASE}/v3/company/${oauthClient.realmId}/invoice/${invoice.Id}/send`,
+      `${QB_API_BASE}/v3/company/${realmId}/invoice/${invoice.Id}/send`,
       {
         method: "POST",
         headers: {
@@ -382,14 +402,24 @@ const processContractSignatureForQB = async (contractData) => {
     const submissionLink = refreshedInvoice.InvoiceLink;
 
     if (!submissionLink) {
-      console.error("[QB] ❌ InvoiceLink not found");
+      console.error("[QB] ❌ InvoiceLink not found on refreshed invoice — skipping webhook");
       return invoice;
     }
 
     console.log("[QB] 💳 Payment Link:", submissionLink);
 
-    // 🔥 STEP 5: SEND TO MAKE WEBHOOK
+    // STEP 5: SEND TO MAKE WEBHOOK
     const makeWebhookUrl = process.env.PAYMENT_INVOICE || 'https://hook.us2.make.com/ggaajop3yqmam0e6dk7j247oxiu1eueh';
+
+    const webhookPayload = {
+      action: 'invoice_payment',
+      email: customerEmail,
+      to: customerEmail,
+      submissionLink: submissionLink,
+      invoiceId: invoice.Id,
+      companyName: vendorData.company || vendorData.companyName || '',
+    };
+    console.log("[QB] Sending webhook payload:", JSON.stringify(webhookPayload));
 
     await fetch(makeWebhookUrl, {
       method: "POST",
@@ -409,10 +439,6 @@ const processContractSignatureForQB = async (contractData) => {
     console.log("[QB] ✅ Webhook sent successfully");
 
     return invoice;
-  } catch (e) {
-    console.error("[QB] ❌ Integration Failed:", e.message);
-    return null;
-  }
 };
 
 const isAuthenticated = () => {
@@ -444,7 +470,8 @@ const sendInvoiceEmail = async (invoiceId, toEmail) => {
     throw new Error('[QB] Not authenticated — cannot send invoice email.');
   }
 
-  const realmId = process.env.QB_COMPANY_ID;
+  const realmId = process.env.QB_COMPANY_ID || oauthToken.realmId || oauthClient.realmId;
+  if (!realmId) throw new Error('[QB] Company ID (realmId) is missing. Re-authenticate at /auth/authUri.');
   const url = `${QB_API_BASE}/v3/company/${realmId}/invoice/${invoiceId}/send?sendTo=${encodeURIComponent(toEmail)}`;
 
   console.log(`[QB] Sending invoice ${invoiceId} to ${toEmail}...`);

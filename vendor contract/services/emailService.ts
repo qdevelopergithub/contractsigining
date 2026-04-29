@@ -11,7 +11,7 @@ const MAKE_WEBHOOK_URL = "https://hook.us2.make.com/ihncxlrp5nekfz7h2kmy5hni4lv0
  * The public URL where the ContractGenius (Signing App) is hosted.
  * We assume it's running on port 3001 if the Vendor App is on 3000.
  */
-const rawBackendUrl = import.meta.env.VITE_BACKEND_URL || "https://contract-genius-backend-93t6.onrender.com";
+const rawBackendUrl = import.meta.env.VITE_BACKEND_URL || "https://contractsigining.onrender.com";
 const BACKEND_URL = rawBackendUrl.startsWith('http') ? rawBackendUrl : `https://${rawBackendUrl}`;
 
 /**
