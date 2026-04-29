@@ -19,22 +19,29 @@ let oauthClient = new OAuthClient({
 });
 
 let oauthToken = null;
+let _refreshPromise = null; // lock to prevent concurrent refresh races
 
 const loadToken = () => {
   try {
-    // 1. Try env var first (survives Render restarts/redeploys)
-    if (process.env.QB_OAUTH_TOKEN) {
-      oauthToken = JSON.parse(process.env.QB_OAUTH_TOKEN);
-      if (oauthToken.realmId) oauthClient.realmId = oauthToken.realmId;
-      console.log('[QB] Loaded OAuth token from QB_OAUTH_TOKEN env var');
-      return;
-    }
-    // 2. Fall back to file (local development)
+    // 1. Try loading from file (local dev / persisted refresh)
     if (fs.existsSync(TOKEN_FILE)) {
       const data = fs.readFileSync(TOKEN_FILE, 'utf8');
-      oauthToken = JSON.parse(data);
-      if (oauthToken.realmId) oauthClient.realmId = oauthToken.realmId;
-      console.log('[QB] Loaded OAuth token from file');
+      const fileToken = JSON.parse(data);
+      // Prefer the file token if it was created more recently than the env var token
+      const envToken = process.env.QB_OAUTH_TOKEN ? JSON.parse(process.env.QB_OAUTH_TOKEN) : null;
+      if (envToken && envToken.created_at && fileToken.created_at && envToken.created_at > fileToken.created_at) {
+        oauthToken = envToken;
+        console.log('[QB] Loaded OAuth token from QB_OAUTH_TOKEN env var (newer than file)');
+      } else {
+        oauthToken = fileToken;
+        console.log('[QB] Loaded stored OAuth token from file');
+      }
+      return;
+    }
+    // 2. Fallback: load from env var (production / Render)
+    if (process.env.QB_OAUTH_TOKEN) {
+      oauthToken = JSON.parse(process.env.QB_OAUTH_TOKEN);
+      console.log('[QB] Loaded OAuth token from QB_OAUTH_TOKEN env var');
     }
   } catch (e) {
     console.error('[QB] Error loading token:', e.message);
@@ -44,12 +51,7 @@ const loadToken = () => {
 const saveToken = (token) => {
   try {
     oauthToken = token;
-    // Keep env var in sync so refreshed tokens are available in current process
-    process.env.QB_OAUTH_TOKEN = JSON.stringify(token);
-    // Also write to file for local development
     fs.writeFileSync(TOKEN_FILE, JSON.stringify(token, null, 2));
-    console.log('[QB] ✅ Token saved. To persist across Render restarts, set this env var in your Render dashboard:');
-    console.log(`[QB] QB_OAUTH_TOKEN=${JSON.stringify(token)}`);
   } catch (e) {
     console.error('[QB] Error saving token:', e.message);
   }
@@ -64,15 +66,11 @@ const getAuthUri = () => {
   });
 };
 
-const createToken = async (url, realmId) => {
+const createToken = async (url) => {
   try {
     const authResponse = await oauthClient.createToken(url);
     const token = authResponse.getJson();
-    // realmId comes from the callback query param — persist it with the token
-    token.realmId = realmId || oauthClient.realmId;
-    if (token.realmId) oauthClient.realmId = token.realmId;
     saveToken(token);
-    console.log(`[QB] Token saved with realmId: ${token.realmId}`);
     return token;
   } catch (e) {
     console.error('Error creating QB token:', e);
@@ -80,48 +78,76 @@ const createToken = async (url, realmId) => {
   }
 };
 
-// Calls QB OAuth endpoint directly to refresh using refresh_token
+// Calls QB OAuth endpoint directly to refresh using refresh_token.
+// Uses a shared promise lock so concurrent callers share one refresh instead of racing.
 const forceRefreshToken = async () => {
-  if (!oauthToken?.refresh_token) {
-    throw new Error('[QB] No refresh_token available. Re-authentication required.');
-  }
-  const credentials = Buffer.from(
-    `${process.env.QB_CLIENT_ID}:${process.env.QB_CLIENT_SECRET}`
-  ).toString('base64');
-
-  const response = await fetch('https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Basic ${credentials}`,
-      'Content-Type': 'application/x-www-form-urlencoded',
-      'Accept': 'application/json',
-    },
-    body: new URLSearchParams({
-      grant_type: 'refresh_token',
-      refresh_token: oauthToken.refresh_token,
-    }),
-  });
-
-  if (!response.ok) {
-    const err = await response.text();
-    throw new Error(`[QB] Token refresh failed (${response.status}): ${err}`);
+  if (_refreshPromise) {
+    console.log('[QB] Refresh already in progress — waiting for it...');
+    return _refreshPromise;
   }
 
-  const newTokenData = await response.json();
+  _refreshPromise = (async () => {
+    try {
+      if (!oauthToken?.refresh_token) {
+        throw new Error('[QB] No refresh_token available. Re-authentication required.');
+      }
 
-  // QB returns expires_in in seconds — store created_at for expiry calculation
-  const updatedToken = {
-    ...oauthToken,
-    access_token: newTokenData.access_token,
-    refresh_token: newTokenData.refresh_token || oauthToken.refresh_token,
-    expires_in: newTokenData.expires_in,
-    x_refresh_token_expires_in: newTokenData.x_refresh_token_expires_in,
-    created_at: Math.floor(Date.now() / 1000),
-  };
+      const credentials = Buffer.from(
+        `${process.env.QB_CLIENT_ID}:${process.env.QB_CLIENT_SECRET}`
+      ).toString('base64');
 
-  saveToken(updatedToken);
-  console.log('[QB] ✅ Access token refreshed successfully');
-  return updatedToken;
+      const response = await fetch('https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Basic ${credentials}`,
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Accept': 'application/json',
+        },
+        body: new URLSearchParams({
+          grant_type: 'refresh_token',
+          refresh_token: oauthToken.refresh_token,
+        }),
+      });
+
+      if (!response.ok) {
+        const errText = await response.text();
+        let errJson = {};
+        try { errJson = JSON.parse(errText); } catch (_) {}
+
+        if (errJson.error === 'invalid_grant' || response.status === 400) {
+          // Refresh token is expired or already rotated — clear stored token so
+          // subsequent calls fail fast and the admin knows to re-authenticate.
+          oauthToken = null;
+          try { if (fs.existsSync(TOKEN_FILE)) fs.unlinkSync(TOKEN_FILE); } catch (_) {}
+          throw new Error(
+            '[QB] Refresh token is invalid or expired. Re-authenticate via /auth/qb to restore QB integration.'
+          );
+        }
+
+        throw new Error(`[QB] Token refresh failed (${response.status}): ${errText}`);
+      }
+
+      const newTokenData = await response.json();
+
+      // QB returns expires_in in seconds — store created_at for expiry calculation
+      const updatedToken = {
+        ...oauthToken,
+        access_token: newTokenData.access_token,
+        refresh_token: newTokenData.refresh_token || oauthToken.refresh_token,
+        expires_in: newTokenData.expires_in,
+        x_refresh_token_expires_in: newTokenData.x_refresh_token_expires_in,
+        created_at: Math.floor(Date.now() / 1000),
+      };
+
+      saveToken(updatedToken);
+      console.log('[QB] ✅ Access token refreshed successfully');
+      return updatedToken;
+    } finally {
+      _refreshPromise = null;
+    }
+  })();
+
+  return _refreshPromise;
 };
 
 const isTokenExpired = () => {
@@ -158,12 +184,18 @@ const getQbClient = async () => {
   return buildQbClient();
 };
 
-// Wraps a QB API call — auto-refreshes and retries once on 401
+// Wraps a QB API call — auto-refreshes and retries once on 401.
+// Does NOT retry on invalid_grant (re-auth is required in that case).
 const withAutoRefresh = async (apiFn) => {
   try {
     const qbo = await getQbClient();
     return await apiFn(qbo);
   } catch (e) {
+    // Never retry if the refresh token itself is invalid — re-auth is needed
+    if (e?.message?.includes('invalid_grant') || e?.message?.includes('Re-authenticate')) {
+      throw e;
+    }
+
     const is401 = e?.message?.includes('401') ||
       e?.intuit_tid ||
       e?.error === 'invalid_token' ||
@@ -334,17 +366,17 @@ const createInvoice = (qbo, customerId, contractData) => {
 };
 
 const processContractSignatureForQB = async (contractData) => {
+  try {
     if (!oauthToken) {
-      throw new Error("[QB] Not authenticated with QuickBooks. Please complete OAuth setup at /auth/quickbooks.");
+      console.log("[QB] Skipping - Not authenticated");
+      return null;
     }
 
     const vendorData = contractData.vendorDetails || contractData.vendor;
 
-    if (!vendorData) {
-      throw new Error("[QB] Missing vendor details on contract.");
-    }
-    if (!vendorData.email) {
-      throw new Error("[QB] Vendor email is required to generate a QuickBooks invoice.");
+    if (!vendorData || !vendorData.email) {
+      console.log("[QB] Skipping - No vendor data or email");
+      return null;
     }
 
     console.log(`[QB] Processing contract for: ${vendorData.company || vendorData.name}`);
@@ -357,29 +389,20 @@ const processContractSignatureForQB = async (contractData) => {
       createInvoice(qbo, customer.Id, contractData)
     );
 
-    if (!invoice) throw new Error("[QB] Invoice creation returned no result.");
+    if (!invoice) return null;
 
     console.log(`[QB] ✅ Invoice ${invoice.Id} created`);
 
-    // Trim to avoid whitespace-only strings passing the guard
-    const customerEmail = (
-      vendorData.contacts?.[0]?.email ||
-      vendorData.email ||
-      ""
-    ).trim();
-
-    console.log(`[QB] Customer email resolved: "${customerEmail}"`);
+    const customerEmail =
+      vendorData.contacts?.[0]?.email || vendorData.email;
 
     if (!customerEmail) {
-      console.error("[QB] ❌ No valid email found — skipping invoice send and webhook");
+      console.log("[QB] ❌ No email found");
       return invoice;
     }
 
-    const realmId = process.env.QB_COMPANY_ID || oauthToken.realmId || oauthClient.realmId;
-    if (!realmId) throw new Error("[QB] Company ID (realmId) is missing. Re-authenticate at /auth/authUri.");
-
     await fetch(
-      `${QB_API_BASE}/v3/company/${realmId}/invoice/${invoice.Id}/send`,
+      `${QB_API_BASE}/v3/company/${oauthClient.realmId}/invoice/${invoice.Id}/send`,
       {
         method: "POST",
         headers: {
@@ -402,24 +425,14 @@ const processContractSignatureForQB = async (contractData) => {
     const submissionLink = refreshedInvoice.InvoiceLink;
 
     if (!submissionLink) {
-      console.error("[QB] ❌ InvoiceLink not found on refreshed invoice — skipping webhook");
+      console.error("[QB] ❌ InvoiceLink not found");
       return invoice;
     }
 
     console.log("[QB] 💳 Payment Link:", submissionLink);
 
-    // STEP 5: SEND TO MAKE WEBHOOK
+    // 🔥 STEP 5: SEND TO MAKE WEBHOOK
     const makeWebhookUrl = process.env.PAYMENT_INVOICE || 'https://hook.us2.make.com/ggaajop3yqmam0e6dk7j247oxiu1eueh';
-
-    const webhookPayload = {
-      action: 'invoice_payment',
-      email: customerEmail,
-      to: customerEmail,
-      submissionLink: submissionLink,
-      invoiceId: invoice.Id,
-      companyName: vendorData.company || vendorData.companyName || '',
-    };
-    console.log("[QB] Sending webhook payload:", JSON.stringify(webhookPayload));
 
     await fetch(makeWebhookUrl, {
       method: "POST",
@@ -439,6 +452,10 @@ const processContractSignatureForQB = async (contractData) => {
     console.log("[QB] ✅ Webhook sent successfully");
 
     return invoice;
+  } catch (e) {
+    console.error("[QB] ❌ Integration Failed:", e.message);
+    return null;
+  }
 };
 
 const isAuthenticated = () => {
@@ -470,8 +487,7 @@ const sendInvoiceEmail = async (invoiceId, toEmail) => {
     throw new Error('[QB] Not authenticated — cannot send invoice email.');
   }
 
-  const realmId = process.env.QB_COMPANY_ID || oauthToken.realmId || oauthClient.realmId;
-  if (!realmId) throw new Error('[QB] Company ID (realmId) is missing. Re-authenticate at /auth/authUri.');
+  const realmId = process.env.QB_COMPANY_ID;
   const url = `${QB_API_BASE}/v3/company/${realmId}/invoice/${invoiceId}/send?sendTo=${encodeURIComponent(toEmail)}`;
 
   console.log(`[QB] Sending invoice ${invoiceId} to ${toEmail}...`);
